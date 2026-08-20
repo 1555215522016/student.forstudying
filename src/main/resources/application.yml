@@ -1,0 +1,45 @@
+# ===== 全局通用配置（所有环境都生效）=====
+
+spring:
+  application:
+    name: scuplus-java
+
+  # 默认激活哪个环境（dev=开发 / prod=生产）
+  profiles:
+    active: dev
+
+  jackson:
+    # 统一时间格式，避免返回 "2026-08-11T15:27:45" 这种难看格式
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+
+server:
+  port: 8080
+
+# ===== MyBatis-Plus 全局配置 =====
+mybatis-plus:
+  configuration:
+    # 数据库下划线字段 user_id 自动映射成 Java 驼峰属性 userId
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      # 主键策略：数据库自增
+      id-type: auto
+
+# ===== SpringDoc / Swagger UI =====
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+# ===== JWT 配置（登录令牌的密钥和有效期）=====
+scuplus:
+  jwt:
+    # 生产环境务必换成随机长字符串，用环境变量覆盖
+    secret: scuplus-dev-secret-key-change-me-in-production-0123456789
+    # token 有效期：单位秒，7 天
+    expire-seconds: 604800
+    # 请求头里携带 token 的字段名
+    header: Authorization
