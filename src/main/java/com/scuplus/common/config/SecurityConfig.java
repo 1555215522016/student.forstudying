@@ -31,9 +31,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 public class SecurityConfig {
 
-    /** 免登录路径（白名单） */
+    /** 免登录路径（所有 HTTP 方法都公开） */
     private static final String[] WHITE_LIST = {
-            "/api/v1/auth/login",   // 登录接口（未登录可访问；me/logout 需要登录）
+            "/api/v1/auth/login",   // 登录接口（me/logout 需要登录）
             "/api/v1/notices",      // 首页公告（公开）
             "/api/v1/notices/**",
             "/swagger-ui.html",     // Swagger 文档

@@ -2,7 +2,9 @@ com\scuplus\common\security\SessionAuthFilter.class
 com\scuplus\module\user\entity\User.class
 com\scuplus\module\share\service\impl\LikeServiceImpl.class
 com\scuplus\module\auth\service\impl\AuthServiceImpl.class
+com\scuplus\module\share\service\impl\PostServiceImpl.class
 com\scuplus\module\auth\dto\LoginRequest.class
+com\scuplus\module\share\dto\PostVO.class
 com\scuplus\module\user\mapper\UserCredentialMapper.class
 com\scuplus\common\config\MybatisPlusConfig.class
 com\scuplus\common\result\PageResult.class
@@ -12,13 +14,16 @@ com\scuplus\common\config\CorsConfig.class
 com\scuplus\common\exception\ErrorCode.class
 com\scuplus\ScuplusApplication.class
 com\scuplus\common\result\Result.class
+com\scuplus\module\share\dto\PostCreateRequest.class
 com\scuplus\module\share\entity\Post.class
 com\scuplus\module\share\entity\Like.class
 com\scuplus\module\share\mapper\LikeMapper.class
 com\scuplus\module\share\mapper\CommentMapper.class
+com\scuplus\module\share\controller\PostController.class
 com\scuplus\common\security\LoginUser.class
 com\scuplus\module\share\service\LikeService.class
 com\scuplus\module\auth\controller\AuthController.class
+com\scuplus\module\share\service\PostService.class
 com\scuplus\module\user\entity\UserCredential.class
 com\scuplus\common\config\SwaggerConfig.class
 com\scuplus\module\share\mapper\PostMapper.class

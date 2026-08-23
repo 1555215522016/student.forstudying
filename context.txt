@@ -1,0 +1,925 @@
+================================================================
+ JCTX v2.1.0 - Java, Kotlin & Python Context Extractor
+ Project : D:\scuplus-java
+ Date    : 2026-08-23 14:55:49
+ Files   : Java: 35 file(s) | POM: 1 file(s)
+================================================================
+
+================================================================
+ SECTION 1 - PROJECT FILE TREE
+================================================================
+
+  scuplus-java\
+  ├── src\
+  │   ├── main\
+  │   │   ├── java\
+  │   │   │   └── com\
+  │   │   │       └── scuplus\
+  │   │   │           ├── common\
+  │   │   │           │   ├── annotation\
+  │   │   │           │   ├── config\
+  │   │   │           │   │   ├── CorsConfig.java
+  │   │   │           │   │   ├── MybatisPlusConfig.java
+  │   │   │           │   │   ├── SecurityConfig.java
+  │   │   │           │   │   └── SwaggerConfig.java
+  │   │   │           │   ├── exception\
+  │   │   │           │   │   ├── BusinessException.java
+  │   │   │           │   │   ├── ErrorCode.java
+  │   │   │           │   │   └── GlobalExceptionHandler.java
+  │   │   │           │   ├── interceptor\
+  │   │   │           │   ├── result\
+  │   │   │           │   │   ├── PageResult.java
+  │   │   │           │   │   └── Result.java
+  │   │   │           │   ├── security\
+  │   │   │           │   │   ├── LoginUser.java
+  │   │   │           │   │   └── SessionAuthFilter.java
+  │   │   │           │   └── util\
+  │   │   │           ├── infrastructure\
+  │   │   │           ├── module\
+  │   │   │           │   ├── auth\
+  │   │   │           │   │   ├── controller\
+  │   │   │           │   │   │   └── AuthController.java
+  │   │   │           │   │   ├── dto\
+  │   │   │           │   │   │   ├── LoginRequest.java
+  │   │   │           │   │   │   └── LoginResponse.java
+  │   │   │           │   │   └── service\
+  │   │   │           │   │       ├── impl\
+  │   │   │           │   │       │   └── AuthServiceImpl.java
+  │   │   │           │   │       └── AuthService.java
+  │   │   │           │   ├── share\
+  │   │   │           │   │   ├── controller\
+  │   │   │           │   │   │   ├── LikeController.java
+  │   │   │           │   │   │   └── PostController.java
+  │   │   │           │   │   ├── dto\
+  │   │   │           │   │   │   ├── PostCreateRequest.java
+  │   │   │           │   │   │   └── PostVO.java
+  │   │   │           │   │   ├── entity\
+  │   │   │           │   │   │   ├── Comment.java
+  │   │   │           │   │   │   ├── Like.java
+  │   │   │           │   │   │   └── Post.java
+  │   │   │           │   │   ├── mapper\
+  │   │   │           │   │   │   ├── CommentMapper.java
+  │   │   │           │   │   │   ├── LikeMapper.java
+  │   │   │           │   │   │   └── PostMapper.java
+  │   │   │           │   │   └── service\
+  │   │   │           │   │       ├── impl\
+  │   │   │           │   │       │   ├── LikeServiceImpl.java
+  │   │   │           │   │       │   └── PostServiceImpl.java
+  │   │   │           │   │       ├── LikeService.java
+  │   │   │           │   │       └── PostService.java
+  │   │   │           │   └── user\
+  │   │   │           │       ├── entity\
+  │   │   │           │       │   ├── User.java
+  │   │   │           │       │   └── UserCredential.java
+  │   │   │           │       └── mapper\
+  │   │   │           │           ├── UserCredentialMapper.java
+  │   │   │           │           └── UserMapper.java
+  │   │   │           └── ScuplusApplication.java
+  │   │   └── resources\
+  │   │       ├── db\
+  │   │       │   └── migration\
+  │   │       │       ├── V1__init_schema.sql
+  │   │       │       └── V2__daily_share.sql
+  │   │       ├── mapper\
+  │   │       ├── application-dev.yml
+  │   │       ├── application-prod.yml
+  │   │       └── application.yml
+  │   └── test\
+  │       └── java\
+  │           └── com\
+  │               └── scuplus\
+  ├── CLAUDE.md
+  ├── docker-compose.yml
+  ├── mvnw.cmd
+  └── pom.xml
+
+
+================================================================
+ SECTION 2 - POM.XML CONTENT
+================================================================
+
+----------------------------------------------------------------
+  FILE: pom.xml
+----------------------------------------------------------------
+
+  <?xml version="1.0" encoding="UTF-8"?>
+  <project xmlns="http://maven.apache.org/POM/4.0.0"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+      <modelVersion>4.0.0</modelVersion>
+  
+      <!-- 继承 Spring Boot 的官方 parent，统一管理所有 Spring 依赖的版本号 -->
+      <parent>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-parent</artifactId>
+          <version>3.5.3</version>
+          <relativePath/>
+      </parent>
+  
+      <!-- 项目坐标：groupId 组织名 + artifactId 项目名 + version 版本号 -->
+      <groupId>com.scuplus</groupId>
+      <artifactId>scuplus-java</artifactId>
+      <version>0.0.1-SNAPSHOT</version>
+      <name>scuplus-java</name>
+      <description>SCUPLUS 校园小程序后端 (Spring Boot 3.x 重构)</description>
+  
+      <properties>
+          <java.version>17</java.version>
+          <!-- 下面几个是 Spring Boot parent 不管理的第三方库，版本号我们自己定 -->
+          <mybatis-plus.version>3.5.7</mybatis-plus.version>
+          <jjwt.version>0.12.6</jjwt.version>
+          <springdoc.version>2.8.5</springdoc.version>
+          <hutool.version>5.8.32</hutool.version>
+          <mapstruct.version>1.6.3</mapstruct.version>
+      </properties>
+  
+      <dependencies>
+          <!-- Web：提供 REST 接口能力（Tomcat 内嵌、Spring MVC） -->
+          <dependency>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-web</artifactId>
+          </dependency>
+  
+          <!-- Security：登录鉴权，配合 JWT 做无状态认证 -->
+          <dependency>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-security</artifactId>
+          </dependency>
+  
+          <!-- Validation：@Valid 参数校验 -->
+          <dependency>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-validation</artifactId>
+          </dependency>
+  
+          <!-- Redis：缓存、会话存储的客户端 -->
+          <dependency>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-data-redis</artifactId>
+          </dependency>
+  
+          <!-- Spring Cache：缓存抽象层，配合 @Cacheable 注解使用 -->
+          <dependency>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-cache</artifactId>
+          </dependency>
+  
+          <!-- MyBatis-Plus：国产 ORM，基于 MyBatis 增强，内置 CRUD/分页（Spring Boot 3 专用 starter） -->
+          <dependency>
+              <groupId>com.baomidou</groupId>
+              <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+              <version>${mybatis-plus.version}</version>
+          </dependency>
+  
+          <!-- MySQL 驱动：Java 程序连 MySQL 的桥梁 -->
+          <dependency>
+              <groupId>com.mysql</groupId>
+              <artifactId>mysql-connector-j</artifactId>
+              <scope>runtime</scope>
+          </dependency>
+  
+          <!-- JWT：生成和解析登录令牌。拆成 api/impl/jackson 三件套，api 编译期用，另两个运行期才需要 -->
+          <dependency>
+              <groupId>io.jsonwebtoken</groupId>
+              <artifactId>jjwt-api</artifactId>
+              <version>${jjwt.version}</version>
+          </dependency>
+          <dependency>
+              <groupId>io.jsonwebtoken</groupId>
+              <artifactId>jjwt-impl</artifactId>
+              <version>${jjwt.version}</version>
+              <scope>runtime</scope>
+          </dependency>
+          <dependency>
+              <groupId>io.jsonwebtoken</groupId>
+              <artifactId>jjwt-jackson</artifactId>
+              <version>${jjwt.version}</version>
+              <scope>runtime</scope>
+          </dependency>
+  
+          <!-- SpringDoc：启动后自动生成 API 文档，浏览器访问 /swagger-ui.html 可视化测试接口 -->
+          <dependency>
+              <groupId>org.springdoc</groupId>
+              <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+              <version>${springdoc.version}</version>
+          </dependency>
+  
+          <!-- Hutool：一个包含大量实用方法的工具库（字符串/加密/日期处理等），少写重复代码 -->
+          <dependency>
+              <groupId>cn.hutool</groupId>
+              <artifactId>hutool-all</artifactId>
+              <version>${hutool.version}</version>
+          </dependency>
+  
+          <!-- MapStruct：编译期自动生成 DTO/VO/Entity 之间的转换代码 -->
+          <dependency>
+              <groupId>org.mapstruct</groupId>
+              <artifactId>mapstruct</artifactId>
+              <version>${mapstruct.version}</version>
+          </dependency>
+  
+          <!-- Lombok：用注解自动生成 getter/setter/构造器，减少样板代码（编译期生效，运行时不打包） -->
+          <dependency>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+              <optional>true</optional>
+          </dependency>
+  
+          <!-- 测试：JUnit 5 + Mockito + SpringBootTest -->
+          <dependency>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-test</artifactId>
+              <scope>test</scope>
+          </dependency>
+          <!-- H2：内存数据库，单元测试用，不用连真实 MySQL -->
+          <dependency>
+              <groupId>com.h2database</groupId>
+              <artifactId>h2</artifactId>
+              <scope>test</scope>
+          </dependency>
+      </dependencies>
+  
+      <build>
+          <plugins>
+              <!-- 编译插件：配置注解处理器路径，让 Lombok 和 MapStruct 在编译期协同工作 -->
+              <plugin>
+                  <groupId>org.apache.maven.plugins</groupId>
+                  <artifactId>maven-compiler-plugin</artifactId>
+                  <configuration>
+                      <annotationProcessorPaths>
+                          <path>
+                              <groupId>org.projectlombok</groupId>
+                              <artifactId>lombok</artifactId>
+                              <version>${lombok.version}</version>
+                          </path>
+                          <path>
+                              <groupId>org.mapstruct</groupId>
+                              <artifactId>mapstruct-processor</artifactId>
+                              <version>${mapstruct.version}</version>
+                          </path>
+                          <path>
+                              <groupId>org.projectlombok</groupId>
+                              <artifactId>lombok-mapstruct-binding</artifactId>
+                              <version>0.2.0</version>
+                          </path>
+                      </annotationProcessorPaths>
+                  </configuration>
+              </plugin>
+  
+              <!-- Spring Boot 打包插件：把项目打成可执行的 jar -->
+              <plugin>
+                  <groupId>org.springframework.boot</groupId>
+                  <artifactId>spring-boot-maven-plugin</artifactId>
+                  <configuration>
+                      <excludes>
+                          <exclude>
+                              <groupId>org.projectlombok</groupId>
+                              <artifactId>lombok</artifactId>
+                          </exclude>
+                      </excludes>
+                  </configuration>
+              </plugin>
+          </plugins>
+      </build>
+  </project>
+
+
+================================================================
+ SECTION 3 - JAVA CLASS AND MEMBER DETAILS
+================================================================
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\ScuplusApplication.java
+----------------------------------------------------------------
+
+  CLASS: ScuplusApplication
+
+  DATA MEMBERS: (none found)
+
+  METHODS:
+    [1] void main(String[] args)
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\common\config\CorsConfig.java
+----------------------------------------------------------------
+
+  CLASS: CorsConfig
+
+  DATA MEMBERS: (none found)
+
+  METHODS:
+    [1] CorsConfigurationSource corsConfigurationSource()
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\common\config\MybatisPlusConfig.java
+----------------------------------------------------------------
+
+  CLASS: MybatisPlusConfig
+
+  DATA MEMBERS: (none found)
+
+  METHODS:
+    [1] MybatisPlusInterceptor mybatisPlusInterceptor()
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\common\config\SecurityConfig.java
+----------------------------------------------------------------
+
+  CLASS: SecurityConfig
+
+  DATA MEMBERS: (none found)
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\common\config\SwaggerConfig.java
+----------------------------------------------------------------
+
+  CLASS: SwaggerConfig
+
+  DATA MEMBERS: (none found)
+
+  METHODS:
+    [1] OpenAPI scuplusOpenAPI()
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\common\exception\BusinessException.java
+----------------------------------------------------------------
+
+  CLASS: BusinessException
+
+  DATA MEMBERS:
+    · private final int status
+
+  METHODS:
+    [1] BusinessException(ErrorCode errorCode)
+         DOC: (no documentation)
+
+    [2] BusinessException(ErrorCode errorCode, String msg)
+         DOC: 覆盖默认提示语：保留错误码，但给出更具体的说明
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\common\exception\ErrorCode.java
+----------------------------------------------------------------
+
+  CLASS: ErrorCode
+
+  DATA MEMBERS:
+    · private final int status
+    · private final String msg
+
+  METHODS:
+    [1] SUCCESS(0, "success")
+         DOC: (no documentation)
+
+    [2] BAD_REQUEST(40000, "请求参数错误")
+         DOC: 请求参数错误
+
+    [3] PARAM_MISSING(40001, "缺少必要参数")
+         DOC: 缺少必要参数
+
+    [4] PARAM_INVALID(40002, "参数格式不正确")
+         DOC: 参数格式不正确
+
+    [5] UNAUTHORIZED(40100, "未登录或登录已过期")
+         DOC: 未登录或登录已过期
+
+    [6] FORBIDDEN(40300, "无权限访问该资源")
+         DOC: 无权限访问该资源
+
+    [7] NOT_FOUND(40400, "资源不存在")
+         DOC: 资源不存在
+
+    [8] CONFLICT(40900, "资源状态冲突")
+         DOC: 资源状态冲突（如重复提交、数据已被修改）
+
+    [9] SERVER_ERROR(50000, "系统繁忙，请稍后重试")
+         DOC: 系统繁忙
+
+    [10] ErrorCode(int status, String msg)
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\common\exception\GlobalExceptionHandler.java
+----------------------------------------------------------------
+
+  CLASS: GlobalExceptionHandler
+
+  DATA MEMBERS: (none found)
+
+  METHODS:
+    [1] Result<Void> handleBusinessException(BusinessException e)
+         DOC: (no documentation)
+
+    [2] Result<Void> handleValidationException(MethodArgumentNotValidException e)
+         DOC: (no documentation)
+
+    [3] Result<Void> handleNotFound(NoResourceFoundException e)
+         DOC: (no documentation)
+
+    [4] Result<Void> handleException(Exception e)
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\common\result\PageResult.java
+----------------------------------------------------------------
+
+  CLASS: PageResult
+
+  DATA MEMBERS:
+    · private long total
+    · private List<T> list
+
+  METHODS:
+    [1] <T> PageResult<T> of(List<T> list, long total)
+         DOC: 构造分页结果
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\common\result\Result.java
+----------------------------------------------------------------
+
+  CLASS: Result
+
+  DATA MEMBERS:
+    · private int status
+    · private String msg
+    · private T data
+
+  METHODS:
+    [1] void setStatus(int status)
+         DOC: (no documentation)
+
+    [2] void setMsg(String msg)
+         DOC: (no documentation)
+
+    [3] void setData(T data)
+         DOC: (no documentation)
+
+    [4] <T> Result<T> success()
+         DOC: 成功，无返回数据
+
+    [5] <T> Result<T> success(T data)
+         DOC: 成功，携带返回数据
+
+    [6] <T> Result<T> error(int status, String msg)
+         DOC: 失败，返回错误码和提示信息
+
+    [7] <T> Result<T> error(ErrorCode errorCode)
+         DOC: 失败，传入错误码枚举（推荐写法，避免魔法数字）
+
+    [8] <T> Result<T> error(ErrorCode errorCode,String msg)
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\common\security\LoginUser.java
+----------------------------------------------------------------
+
+  CLASS: LoginUser
+
+  DATA MEMBERS:
+    · private Long userId
+    · private String studentId
+    · private String nickname
+    · private String avatarUrl
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\common\security\SessionAuthFilter.java
+----------------------------------------------------------------
+
+  CLASS: SessionAuthFilter
+  DOC  : Session 认证过滤器：从 HttpSession 里捞登录用户，塞进 SecurityContext 为什么继承 OncePerRequestFilter？ 保证一次请求只执行一次过滤，避免被过滤器链重复调用。 流程： 1. request.getSession(false) 拿已有 session（false=不新建， 避免给每个匿名请求都创建 session 浪费内存） 2. session 里有 loginUser → 构造 Authentication 放进 SecurityContextHolder 3. 没有 → 不设置认证，放行，让 Security 自己判断该路径要不要拦截 SecurityContextHolder 里有没有认证信息，就是"这个请求是不是登录用户"的判断依据。
+
+  DATA MEMBERS:
+    · public static final String SESSION_KEY
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\auth\controller\AuthController.java
+----------------------------------------------------------------
+
+  CLASS: AuthController
+
+  DATA MEMBERS:
+    · private final AuthService authService
+
+  METHODS:
+    [1] Result<Void> logout(HttpSession session)
+         DOC: (no documentation)
+
+    [2] Result<LoginResponse> me()
+         DOC: (no documentation)
+
+    [3] LoginResponse toResponse(LoginUser loginUser)
+         DOC: LoginUser → LoginResponse（只暴露需要给前端的字段）
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\auth\dto\LoginRequest.java
+----------------------------------------------------------------
+
+  CLASS: LoginRequest
+
+  DATA MEMBERS:
+    · private String studentId
+    · private String password
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\auth\dto\LoginResponse.java
+----------------------------------------------------------------
+
+  CLASS: LoginResponse
+
+  DATA MEMBERS:
+    · private Long userId
+    · private String studentId
+    · private String nickname
+    · private String avatarUrl
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\auth\service\AuthService.java
+----------------------------------------------------------------
+
+  CLASS: AuthService
+  DOC  : 认证服务
+
+  DATA MEMBERS: (none found)
+
+  METHODS:
+    [1] LoginUser login(String studentId, String password)
+         DOC: 登录认证：模拟学校统一认证，通过后返回用户 用户不存在时自动建档（首次登录即注册）
+
+    [2] LoginUser getCurrentUser()
+         DOC: 获取当前登录用户（从 SecurityContext 取）
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\auth\service\impl\AuthServiceImpl.java
+----------------------------------------------------------------
+
+  CLASS: AuthServiceImpl
+
+  DATA MEMBERS:
+    · private static final String TEST_STUDENT_ID
+    · private static final String TEST_PASSWORD
+    · private final UserMapper userMapper
+
+  METHODS:
+    [1] LoginUser login(String studentId, String password)
+         DOC: (no documentation)
+
+    [2] LoginUser getCurrentUser()
+         DOC: (no documentation)
+
+    [3] void mockSchoolAuth(String studentId, String password)
+         DOC: 模拟学校统一认证 TODO: 对接真实学校系统（https / 加密参数 / 可能验证码）
+
+    [4] User createUser(String studentId)
+         DOC: 首次登录自动建档：学号必须有，昵称头像等资料后续补充
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\share\controller\LikeController.java
+----------------------------------------------------------------
+
+  CLASS: LikeController
+
+  DATA MEMBERS:
+    · private final LikeService likeService
+
+  METHODS:
+    [1] Result<Integer> like(@PathVariable Long postId)
+         DOC: (no documentation)
+
+    [2] Result<Integer> dislike(@PathVariable Long postId)
+         DOC: (no documentation)
+
+    [3] Long currentUserId()
+         DOC: 从 SecurityContext 取当前登录用户 ID（SessionAuthFilter 已放入 LoginUser）
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\share\controller\PostController.java
+----------------------------------------------------------------
+
+  CLASS: PostController
+
+  DATA MEMBERS:
+    · private final PostService postService
+
+  METHODS:
+    [1] Result<Long> create(@Valid @RequestBody PostCreateRequest request)
+         DOC: (no documentation)
+
+    [2] Result<PostVO> detail(@PathVariable Long postId)
+         DOC: (no documentation)
+
+    [3] Long currentUserIdOrNull()
+         DOC: 取当前用户 ID，未登录返回 null（不抛异常）
+
+    [4] Long currentUserId()
+         DOC: 取当前用户 ID，未登录抛异常
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\share\dto\PostCreateRequest.java
+----------------------------------------------------------------
+
+  CLASS: PostCreateRequest
+
+  DATA MEMBERS:
+    · private String content
+    · private List<String> mediaUrls
+    · private Boolean isAnonymous
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\share\dto\PostVO.java
+----------------------------------------------------------------
+
+  CLASS: PostVO
+
+  DATA MEMBERS:
+    · private Long id
+    · private String nickname
+    · private String avatarUrl
+    · private String content
+    · private List<String> mediaUrls
+    · private Integer likeCount
+    · private Integer dislikeCount
+    · private Integer commentCount
+    · private LocalDateTime createdAt
+    · private Boolean anonymous
+    · private Integer reactionStatus
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\share\entity\Comment.java
+----------------------------------------------------------------
+
+  CLASS: Comment
+
+  DATA MEMBERS:
+    · private Long id
+    · private Long postId
+    · private Long userId
+    · private String content
+    · private Integer status
+    · private LocalDateTime createdAt
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\share\entity\Like.java
+----------------------------------------------------------------
+
+  CLASS: Like
+
+  DATA MEMBERS:
+    · private Long id
+    · private Long postId
+    · private Long userId
+    · private Integer type
+    · private LocalDateTime createdAt
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\share\entity\Post.java
+----------------------------------------------------------------
+
+  CLASS: Post
+
+  DATA MEMBERS:
+    · private Long id
+    · private Long userId
+    · private String content
+    · private List<String> mediaUrls
+    · private Integer likeCount
+    · private Integer dislikeCount
+    · private Integer commentCount
+    · private Integer status
+    · private Integer isAnonymous
+    · private LocalDateTime createdAt
+    · private LocalDateTime updatedAt
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\share\mapper\CommentMapper.java
+----------------------------------------------------------------
+
+  CLASS: CommentMapper
+
+  DATA MEMBERS: (none found)
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\share\mapper\LikeMapper.java
+----------------------------------------------------------------
+
+  CLASS: LikeMapper
+
+  DATA MEMBERS: (none found)
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\share\mapper\PostMapper.java
+----------------------------------------------------------------
+
+  CLASS: PostMapper
+
+  DATA MEMBERS: (none found)
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\share\service\LikeService.java
+----------------------------------------------------------------
+
+  CLASS: LikeService
+  DOC  : 点赞/点踩服务
+
+  DATA MEMBERS: (none found)
+
+  METHODS:
+    [1] int like(Long postId, Long userId)
+         DOC: 对某篇内容"点一下赞" 未点赞 → 点赞；已点赞 → 取消赞（切换为无状态） @param postId 内容ID @param userId 用户ID @return 操作后的点赞数
+
+    [2] int dislike(Long postId, Long userId)
+         DOC: 对某篇内容"点一下踩" 未点踩 → 点踩；已点踩 → 取消踩 @param postId 内容ID @param userId 用户ID @return 操作后的点踩数
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\share\service\PostService.java
+----------------------------------------------------------------
+
+  CLASS: PostService
+  DOC  : 帖子服务
+
+  DATA MEMBERS: (none found)
+
+  METHODS:
+    [1] Long create(Long userId, PostCreateRequest request)
+         DOC: 发布帖子，返回帖子 ID
+
+    [2] PageResult<PostVO> list(int page, int size)
+         DOC: 列表（分页），返回摘要（不含 mediaUrls）
+
+    [3] PostVO detail(Long postId, Long currentUserId)
+         DOC: 详情，返回全部字段（含 mediaUrls + 点赞状态）
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\share\service\impl\LikeServiceImpl.java
+----------------------------------------------------------------
+
+  CLASS: LikeServiceImpl
+
+  DATA MEMBERS:
+    · private final LikeMapper likeMapper
+    · private final PostMapper postMapper
+    · private final StringRedisTemplate redis
+    · private static final String KEY_LIKES
+    · private static final String KEY_DISLIKES
+    · private static final int TYPE_LIKE
+    · private static final int TYPE_DISLIKE
+
+  METHODS:
+    [1] int like(Long postId, Long userId)
+         DOC: (no documentation)
+
+    [2] int dislike(Long postId, Long userId)
+         DOC: (no documentation)
+
+    [3] String formatKey(String template, long postId)
+         DOC: 把 "post:%d:likes" 模板 + postId 拼成实际 key
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\share\service\impl\PostServiceImpl.java
+----------------------------------------------------------------
+
+  CLASS: PostServiceImpl
+
+  DATA MEMBERS:
+    · private final PostMapper postMapper
+    · private final UserMapper userMapper
+    · private final StringRedisTemplate redisTemplate
+    · private static final String KEY_LIKES
+    · private static final String KEY_DISLIKES
+
+  METHODS:
+    [1] Long create(Long userid, PostCreateRequest request)
+         DOC: (no documentation)
+
+    [2] PageResult<PostVO> list(int page, int size)
+         DOC: (no documentation)
+
+    [3] PostVO detail(Long postid,Long userid)
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\user\entity\User.java
+----------------------------------------------------------------
+
+  CLASS: User
+
+  DATA MEMBERS:
+    · private Long id
+    · private String studentId
+    · private String name
+    · private Integer gender
+    · private LocalDate birthday
+    · private Integer enrollYear
+    · private Integer status
+    · private String nickname
+    · private String avatarUrl
+    · private String major
+    · private String phone
+    · private String email
+    · private LocalDateTime createdAt
+    · private LocalDateTime updatedAt
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\user\entity\UserCredential.java
+----------------------------------------------------------------
+
+  CLASS: UserCredential
+
+  DATA MEMBERS:
+    · private Long id
+    · private Long userId
+    · private String type
+    · private String account
+    · private String encryptedPassword
+    · private LocalDateTime createdAt
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\user\mapper\UserCredentialMapper.java
+----------------------------------------------------------------
+
+  CLASS: UserCredentialMapper
+
+  DATA MEMBERS: (none found)
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\user\mapper\UserMapper.java
+----------------------------------------------------------------
+
+  CLASS: UserMapper
+
+  DATA MEMBERS: (none found)
+
+  METHODS: (none found)
+
+
+================================================================
+ END OF REPORT
+================================================================
