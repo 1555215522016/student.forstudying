@@ -61,7 +61,7 @@ public class PostServiceImpl implements PostService {
     @Override
     public PostVO detail(Long postid, Long userid) {
         Post post = postMapper.selectById(postid);
-        if (post == null) {
+        if (post == null || post.getStatus() != 0) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "帖子已被删除");
         }
         PostVO postVO = convertToVO(post, Boolean.TRUE, null);
@@ -86,7 +86,7 @@ public class PostServiceImpl implements PostService {
         return postVO;  // ← 必须补上 return！
     }
 
-    public PostVO convertToVO(Post post, Boolean withUser, Map<Long, User> Usermap) {
+    public PostVO convertToVO(Post post, Boolean withUser, Map<Long, User> usermap) {
         PostVO vo = new PostVO();
         vo.setId(post.getId());
         vo.setContent(post.getContent());
@@ -105,32 +105,33 @@ public class PostServiceImpl implements PostService {
             vo.setAvatarUrl(null);
             return vo;
         }
-        if(Usermap == null){
-        User user=userMapper.selectById(post.getUserId());
-            // 在 convertToVO 的非匿名分支里
-            if (user != null) {
-                vo.setNickname(user.getNickname() != null ? user.getNickname() : user.getStudentId());
-                vo.setAvatarUrl(user.getAvatarUrl());
-            } else {
-                // 【降级方案】用户不存在或已注销，显示占位信息
-                vo.setNickname("已注销用户");
-                vo.setAvatarUrl(null); // 或者给一个默认的头像地址
-            }
-        return vo;
-        }
-        User user=Usermap.get(post.getUserId());
+        User user = usermap == null ? userMapper.selectById(post.getUserId()) : usermap.get(post.getUserId());
         if (user != null) {
             vo.setNickname(user.getNickname() != null ? user.getNickname() : user.getStudentId());
             vo.setAvatarUrl(user.getAvatarUrl());
         } else {
-            // 【降级方案】同上面分支
+            // 用户不存在或已注销，显示占位信息
             vo.setNickname("已注销用户");
             vo.setAvatarUrl(null);
         }
-
-        // 这里需要补全：如果 Usermap 为 null，说明是详情页，单独查用户
-        // 如果 Usermap 不为 null，从 Map 里取用户信息（未写完，先占位）
         return vo;
+    }
+
+    @Override
+    public void delete(Long postId, Long operatorUserId, Integer operatorRole) {
+        Post post = postMapper.selectById(postId);
+        if (post == null || post.getStatus() == 1) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
+        }
+        // 权限：本人 或 管理员 可删
+        boolean isOwner = post.getUserId().equals(operatorUserId);
+        boolean isAdmin = operatorRole != null && operatorRole == 1;
+        if (!isOwner && !isAdmin) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "无权删除该帖子");
+        }
+        // 软删：只改 status，不动索引、不动评论/点赞（查询自动过滤）
+        post.setStatus(1);
+        postMapper.updateById(post);
     }
 
     public List<PostVO> converToListVo(List<Post> list, Boolean withUser) {
@@ -138,20 +139,17 @@ public class PostServiceImpl implements PostService {
                 .map(Post::getUserId)
                 .filter(Objects::nonNull)
                 .distinct()
+
+
+
                 .toList();
 
         // 不能直接抛异常，因为可能全是匿名帖
-        Map<Long, User> userMap=new HashMap<>();
-        if (!userIds.isEmpty()) {
-            List<User> users = userMapper.selectBatchIds(userIds);
-            userMap = users.stream().collect(Collectors.toMap(
-                    User::getId,
-                    u -> u,
-                    (old, newVal) -> old
-            ));
-        }
+        Map<Long, User> userMap = userIds.isEmpty() ? new HashMap<>()
+                : userMapper.selectBatchIds(userIds).stream()
+                        .collect(Collectors.toMap(User::getId, u -> u, (old, newVal) -> old));
         return list.stream()
-                .map(post -> convertToVO(post,false,userMap))
+                .map(post -> convertToVO(post, false, userMap))
                 .collect(Collectors.toList());
 
 

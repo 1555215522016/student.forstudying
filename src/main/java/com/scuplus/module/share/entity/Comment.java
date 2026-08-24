@@ -22,6 +22,9 @@ public class Comment {
 
     private  Integer status;
 
+    /** 是否匿名：0否 1是 */
+    private Integer isAnonymous;
+
     private LocalDateTime createdAt;
 
 }

@@ -60,6 +60,9 @@ public class User {
     /** 邮箱 */
     private String email;
 
+    /** 角色：0普通用户 1管理员 */
+    private Integer role;
+
     /** 创建时间（DATETIME → LocalDateTime） */
     private LocalDateTime createdAt;
 

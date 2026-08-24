@@ -19,4 +19,12 @@ public interface PostService {
 
     /** 详情，返回全部字段（含 mediaUrls + 点赞状态） */
     PostVO detail(Long postId, Long currentUserId);
+
+    /**
+     * 删除帖子（软删：status 置 1，评论/点赞不物理删，查询自动过滤）
+     * @param postId        帖子ID
+     * @param operatorUserId 操作人ID
+     * @param operatorRole   操作人角色（0普通 1管理员）
+     */
+    void delete(Long postId, Long operatorUserId, Integer operatorRole);
 }

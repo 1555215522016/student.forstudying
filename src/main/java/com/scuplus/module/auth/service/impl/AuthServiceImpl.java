@@ -42,7 +42,7 @@ public class AuthServiceImpl implements AuthService {
 
         // 3. 组装登录快照（存 session 用）
         return new LoginUser(user.getId(), user.getStudentId(),
-                user.getNickname(), user.getAvatarUrl());
+                user.getNickname(), user.getAvatarUrl(), user.getRole());
     }
 
     @Override

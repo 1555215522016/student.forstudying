@@ -59,6 +59,23 @@ public class PostController {
         return Result.success(postService.detail(postId, userId));
     }
 
+    /** 删除帖子：本人 或 管理员 */
+    @DeleteMapping("/{postId}")
+    public Result<Void> delete(@PathVariable Long postId) {
+        LoginUser user = currentLoginUser();
+        postService.delete(postId, user.getUserId(), user.getRole());
+        return Result.success();
+    }
+
+    /** 取当前登录用户完整信息（含角色），未登录抛异常 */
+    private LoginUser currentLoginUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof LoginUser loginUser) {
+            return loginUser;
+        }
+        throw new BusinessException(ErrorCode.UNAUTHORIZED);
+    }
+
     /** 取当前用户 ID，未登录返回 null（不抛异常） */
     private Long currentUserIdOrNull() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();

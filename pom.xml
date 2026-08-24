@@ -27,6 +27,7 @@
         <springdoc.version>2.8.5</springdoc.version>
         <hutool.version>5.8.32</hutool.version>
         <mapstruct.version>1.6.3</mapstruct.version>
+        <minio.version>8.5.12</minio.version>
     </properties>
 
     <dependencies>
@@ -105,6 +106,13 @@
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-all</artifactId>
             <version>${hutool.version}</version>
+        </dependency>
+
+        <!-- MinIO：本地对象存储 SDK（生成预签名 URL，让前端直传图片/视频） -->
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>${minio.version}</version>
         </dependency>
 
         <!-- MapStruct：编译期自动生成 DTO/VO/Entity 之间的转换代码 -->
