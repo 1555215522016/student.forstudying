@@ -34,7 +34,7 @@
   - [x] ShareJob 点赞/点踩延迟落库（@Scheduled 30s）
   - [x] 管理员删帖（角色 role + 软删 status=1）
   - [x] OSS 预签名上传（MinIO + bucket自动创建/公开读 + 前端直传，链路测试通过）
-  - [x] 分片上传/断点续传（前端直传分片：presign-parts 发每片签名 URL，文件不经后端；listParts 断点续传；complete 合并前做数量+etag 完整性校验；测试通过）
+  - [x] 分片上传/断点续传（前端直传分片：presign-parts 发每片签名 URL，文件不经后端；listParts 断点续传；complete 合并前校验数量，合并直接用 MinIO 记录的 etag —— 前端无法伪造；测试通过）
 - [ ] 抢课模块 ★（原子扣减/幂等/限流/@Async/压测纵深点）← 视频后
 - [ ] 通知模块（点赞/评论提醒，WebSocket/SSE）
 - [ ] 私信模块（WebSocket 双向，可选）

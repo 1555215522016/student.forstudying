@@ -190,7 +190,7 @@ public class OssService {
             }
 
             // etag 校验：每个分片的 etag 必须和 MinIO 记录的一致（防伪造/防传错）
-            Map<Integer, String> realEtags = new HashMap<>();
+            /*Map<Integer, String> realEtags = new HashMap<>();
             for (PartSummary ps : uploaded) {
                 realEtags.put(ps.getPartNumber(), ps.getETag());
             }
@@ -200,12 +200,12 @@ public class OssService {
                     throw new BusinessException(ErrorCode.BAD_REQUEST,
                             "分片 " + p.getPartNumber() + " 校验失败，内容与上传时不一致，请重传该片");
                 }
-            }
+            }*/
 
             // ② 校验全部通过，才通知 MinIO 合并
-            List<PartETag> partETags = req.getParts().stream()
-                    .sorted(Comparator.comparing(PartDTO::getPartNumber))
-                    .map(p -> new PartETag(p.getPartNumber(), p.getEtag()))
+            List<PartETag> partETags = uploaded.stream()
+                    .sorted(Comparator.comparing(PartSummary::getPartNumber))
+                    .map(p -> new PartETag(p.getPartNumber(), p.getETag()))
                     .collect(Collectors.toList());
             s3Client.completeMultipartUpload(new CompleteMultipartUploadRequest(
                     minioConfig.getBucket(), objectName, uploadId, partETags));
