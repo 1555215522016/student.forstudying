@@ -1,11 +1,16 @@
 com\scuplus\module\share\service\impl\LikeServiceImpl.class
+com\scuplus\common\config\S3Config.class
 com\scuplus\module\share\service\impl\PostServiceImpl.class
 com\scuplus\module\user\mapper\UserCredentialMapper.class
 com\scuplus\common\config\MybatisPlusConfig.class
+com\scuplus\module\oss\dto\MultipartInitDTO.class
 com\scuplus\module\auth\service\AuthService.class
+com\scuplus\module\oss\dto\AbortRequest.class
+com\scuplus\module\oss\dto\PartPresignDTO.class
 com\scuplus\ScuplusApplication.class
 com\scuplus\module\share\dto\PostCreateRequest.class
 com\scuplus\module\share\entity\Post.class
+com\scuplus\module\oss\dto\PresignPartsDTO.class
 com\scuplus\module\share\entity\Like.class
 com\scuplus\module\share\mapper\LikeMapper.class
 com\scuplus\module\share\mapper\CommentMapper.class
@@ -22,8 +27,10 @@ com\scuplus\common\exception\GlobalExceptionHandler.class
 com\scuplus\common\config\SecurityConfig.class
 com\scuplus\module\user\mapper\UserMapper.class
 com\scuplus\common\security\SessionAuthFilter.class
+com\scuplus\infrastructure\job\FileCleanUpJob.class
 com\scuplus\module\share\service\impl\CommentServiceImpl.class
 com\scuplus\module\user\entity\User.class
+com\scuplus\module\oss\dto\CompleteMultipartRequest.class
 com\scuplus\module\auth\service\impl\AuthServiceImpl.class
 com\scuplus\module\auth\dto\LoginRequest.class
 com\scuplus\module\share\dto\PostVO.class
@@ -36,7 +43,9 @@ com\scuplus\common\config\CorsConfig.class
 com\scuplus\common\exception\ErrorCode.class
 com\scuplus\infrastructure\job\ShareJob.class
 com\scuplus\common\result\Result.class
+com\scuplus\module\oss\dto\PartDTO.class
 com\scuplus\module\oss\dto\PresignDTO.class
+com\scuplus\module\oss\dto\PresignPartsRequest.class
 com\scuplus\module\oss\service\OssService.class
 com\scuplus\module\share\controller\PostController.class
 com\scuplus\module\share\controller\LikeController.class

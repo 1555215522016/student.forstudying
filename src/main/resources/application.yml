@@ -13,6 +13,12 @@ spring:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
 
+  servlet:
+    multipart:
+      # 分片上传：单分片上限（后端中转模式，分片大小要能容纳）
+      max-file-size: 10MB
+      max-request-size: 10MB
+
 server:
   port: 8080
 

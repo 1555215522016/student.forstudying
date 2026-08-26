@@ -28,6 +28,7 @@
         <hutool.version>5.8.32</hutool.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <minio.version>8.5.12</minio.version>
+        <aws-s3.version>1.12.765</aws-s3.version>
     </properties>
 
     <dependencies>
@@ -113,6 +114,13 @@
             <groupId>io.minio</groupId>
             <artifactId>minio</artifactId>
             <version>${minio.version}</version>
+        </dependency>
+
+        <!-- AWS S3 SDK：MinIO 完全兼容 S3 协议，用它调 multipart（分片上传/断点续传）五个底层接口 -->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-s3</artifactId>
+            <version>${aws-s3.version}</version>
         </dependency>
 
         <!-- MapStruct：编译期自动生成 DTO/VO/Entity 之间的转换代码 -->
