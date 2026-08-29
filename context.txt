@@ -1,8 +1,8 @@
 ================================================================
  JCTX v2.1.0 - Java, Kotlin & Python Context Extractor
  Project : D:\scuplus-java
- Date    : 2026-08-23 14:55:49
- Files   : Java: 35 file(s) | POM: 1 file(s)
+ Date    : 2026-08-29 14:08:15
+ Files   : Java: 54 file(s) | POM: 1 file(s)
 ================================================================
 
 ================================================================
@@ -19,7 +19,9 @@
   │   │   │           │   ├── annotation\
   │   │   │           │   ├── config\
   │   │   │           │   │   ├── CorsConfig.java
+  │   │   │           │   │   ├── MinioConfig.java
   │   │   │           │   │   ├── MybatisPlusConfig.java
+  │   │   │           │   │   ├── S3Config.java
   │   │   │           │   │   ├── SecurityConfig.java
   │   │   │           │   │   └── SwaggerConfig.java
   │   │   │           │   ├── exception\
@@ -35,6 +37,9 @@
   │   │   │           │   │   └── SessionAuthFilter.java
   │   │   │           │   └── util\
   │   │   │           ├── infrastructure\
+  │   │   │           │   └── job\
+  │   │   │           │       ├── FileCleanUpJob.java
+  │   │   │           │       └── ShareJob.java
   │   │   │           ├── module\
   │   │   │           │   ├── auth\
   │   │   │           │   │   ├── controller\
@@ -46,11 +51,28 @@
   │   │   │           │   │       ├── impl\
   │   │   │           │   │       │   └── AuthServiceImpl.java
   │   │   │           │   │       └── AuthService.java
+  │   │   │           │   ├── oss\
+  │   │   │           │   │   ├── controller\
+  │   │   │           │   │   │   └── OssController.java
+  │   │   │           │   │   ├── dto\
+  │   │   │           │   │   │   ├── AbortRequest.java
+  │   │   │           │   │   │   ├── CompleteMultipartRequest.java
+  │   │   │           │   │   │   ├── MultipartInitDTO.java
+  │   │   │           │   │   │   ├── PartDTO.java
+  │   │   │           │   │   │   ├── PartPresignDTO.java
+  │   │   │           │   │   │   ├── PresignDTO.java
+  │   │   │           │   │   │   ├── PresignPartsDTO.java
+  │   │   │           │   │   │   └── PresignPartsRequest.java
+  │   │   │           │   │   └── service\
+  │   │   │           │   │       └── OssService.java
   │   │   │           │   ├── share\
   │   │   │           │   │   ├── controller\
+  │   │   │           │   │   │   ├── CommentController.java
   │   │   │           │   │   │   ├── LikeController.java
   │   │   │           │   │   │   └── PostController.java
   │   │   │           │   │   ├── dto\
+  │   │   │           │   │   │   ├── CommentCreateRequest.java
+  │   │   │           │   │   │   ├── CommentVO.java
   │   │   │           │   │   │   ├── PostCreateRequest.java
   │   │   │           │   │   │   └── PostVO.java
   │   │   │           │   │   ├── entity\
@@ -63,8 +85,10 @@
   │   │   │           │   │   │   └── PostMapper.java
   │   │   │           │   │   └── service\
   │   │   │           │   │       ├── impl\
+  │   │   │           │   │       │   ├── CommentServiceImpl.java
   │   │   │           │   │       │   ├── LikeServiceImpl.java
   │   │   │           │   │       │   └── PostServiceImpl.java
+  │   │   │           │   │       ├── CommentService.java
   │   │   │           │   │       ├── LikeService.java
   │   │   │           │   │       └── PostService.java
   │   │   │           │   └── user\
@@ -131,6 +155,8 @@
           <springdoc.version>2.8.5</springdoc.version>
           <hutool.version>5.8.32</hutool.version>
           <mapstruct.version>1.6.3</mapstruct.version>
+          <minio.version>8.5.12</minio.version>
+          <aws-s3.version>1.12.765</aws-s3.version>
       </properties>
   
       <dependencies>
@@ -209,6 +235,20 @@
               <groupId>cn.hutool</groupId>
               <artifactId>hutool-all</artifactId>
               <version>${hutool.version}</version>
+          </dependency>
+  
+          <!-- MinIO：本地对象存储 SDK（生成预签名 URL，让前端直传图片/视频） -->
+          <dependency>
+              <groupId>io.minio</groupId>
+              <artifactId>minio</artifactId>
+              <version>${minio.version}</version>
+          </dependency>
+  
+          <!-- AWS S3 SDK：MinIO 完全兼容 S3 协议，用它调 multipart（分片上传/断点续传）五个底层接口 -->
+          <dependency>
+              <groupId>com.amazonaws</groupId>
+              <artifactId>aws-java-sdk-s3</artifactId>
+              <version>${aws-s3.version}</version>
           </dependency>
   
           <!-- MapStruct：编译期自动生成 DTO/VO/Entity 之间的转换代码 -->
@@ -315,6 +355,24 @@
 
 
 ----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\common\config\MinioConfig.java
+----------------------------------------------------------------
+
+  CLASS: MinioConfig
+
+  DATA MEMBERS:
+    · private String endpoint
+    · private String accessKey
+    · private String secretKey
+    · private String bucket
+    · private Boolean publicRead
+
+  METHODS:
+    [1] MinioClient minioClient()
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
   FILE: src\main\java\com\scuplus\common\config\MybatisPlusConfig.java
 ----------------------------------------------------------------
 
@@ -324,6 +382,20 @@
 
   METHODS:
     [1] MybatisPlusInterceptor mybatisPlusInterceptor()
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\common\config\S3Config.java
+----------------------------------------------------------------
+
+  CLASS: S3Config
+
+  DATA MEMBERS:
+    · private final MinioConfig minioConfig
+
+  METHODS:
+    [1] AmazonS3 s3Client()
          DOC: (no documentation)
 
 
@@ -495,6 +567,7 @@
     · private String studentId
     · private String nickname
     · private String avatarUrl
+    · private Integer role
 
   METHODS: (none found)
 
@@ -510,6 +583,39 @@
     · public static final String SESSION_KEY
 
   METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\infrastructure\job\FileCleanUpJob.java
+----------------------------------------------------------------
+
+  CLASS: FileCleanUpJob
+
+  DATA MEMBERS:
+    · private final PostMapper postMapper
+    · private final MinioClient minioClient
+    · private final MinioConfig minioConfig
+
+  METHODS:
+    [1] void cleanFiles()
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\infrastructure\job\ShareJob.java
+----------------------------------------------------------------
+
+  CLASS: ShareJob
+
+  DATA MEMBERS:
+    · private final PostMapper postMapper
+    · private final StringRedisTemplate redis
+    · private static final String KEY_LIKES
+    · private static final String KEY_DISLIKES
+
+  METHODS:
+    [1] void syncLikeCounts()
+         DOC: (no documentation)
 
 
 ----------------------------------------------------------------
@@ -603,6 +709,178 @@
 
 
 ----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\oss\controller\OssController.java
+----------------------------------------------------------------
+
+  CLASS: OssController
+
+  DATA MEMBERS:
+    · private final OssService ossService
+
+  METHODS:
+    [1] Result<PresignDTO> presign(@RequestParam String fileName)
+         DOC: (no documentation)
+
+    [2] Result<MultipartInitDTO> initMultipart(@RequestParam String fileName)
+         DOC: (no documentation)
+
+    [3] Result<PresignPartsDTO> presignParts(@RequestBody PresignPartsRequest request)
+         DOC: (no documentation)
+
+    [4] Result<List<Integer>> parts(@RequestParam String uploadId)
+         DOC: (no documentation)
+
+    [5] Result<String> complete(@RequestBody CompleteMultipartRequest request)
+         DOC: (no documentation)
+
+    [6] Result<Void> abort(@RequestBody AbortRequest request)
+         DOC: (no documentation)
+
+    [7] String extOf(String fileName)
+         DOC: 从文件名提取扩展名（如 "a.mp4" → ".mp4"；无点则空串）
+
+    [8] LoginUser currentUser()
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\oss\dto\AbortRequest.java
+----------------------------------------------------------------
+
+  CLASS: AbortRequest
+
+  DATA MEMBERS:
+    · private String uploadId
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\oss\dto\CompleteMultipartRequest.java
+----------------------------------------------------------------
+
+  CLASS: CompleteMultipartRequest
+
+  DATA MEMBERS:
+    · private String uploadId
+    · private List<PartDTO> parts
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\oss\dto\MultipartInitDTO.java
+----------------------------------------------------------------
+
+  CLASS: MultipartInitDTO
+
+  DATA MEMBERS:
+    · private String uploadId
+    · private String objectName
+    · private Long chunkSize
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\oss\dto\PartDTO.java
+----------------------------------------------------------------
+
+  CLASS: PartDTO
+
+  DATA MEMBERS:
+    · private Integer partNumber
+    · private String etag
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\oss\dto\PartPresignDTO.java
+----------------------------------------------------------------
+
+  CLASS: PartPresignDTO
+
+  DATA MEMBERS:
+    · private Integer partNumber
+    · private String presignedUrl
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\oss\dto\PresignDTO.java
+----------------------------------------------------------------
+
+  CLASS: PresignDTO
+
+  DATA MEMBERS:
+    · private String presignedUrl
+    · private String objectUrl
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\oss\dto\PresignPartsDTO.java
+----------------------------------------------------------------
+
+  CLASS: PresignPartsDTO
+
+  DATA MEMBERS:
+    · private String uploadId
+    · private List<PartPresignDTO> parts
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\oss\dto\PresignPartsRequest.java
+----------------------------------------------------------------
+
+  CLASS: PresignPartsRequest
+
+  DATA MEMBERS:
+    · private String uploadId
+    · private Integer total
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\oss\service\OssService.java
+----------------------------------------------------------------
+
+  CLASS: OssService
+
+  DATA MEMBERS:
+    · private final MinioClient minioClient
+    · private final AmazonS3 s3Client
+    · private final MinioConfig minioConfig
+    · private final StringRedisTemplate redis
+    · private static final String KEY_UPLOAD
+    · private static final long CHUNK_SIZE
+
+  METHODS:
+    [1] void init()
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\share\controller\CommentController.java
+----------------------------------------------------------------
+
+  CLASS: CommentController
+
+  DATA MEMBERS:
+    · private final CommentService commentService
+
+  METHODS:
+    [1] Long currentUserId()
+         DOC: 取当前登录用户 ID，未登录抛异常（评论模块全部需登录）
+
+
+----------------------------------------------------------------
   FILE: src\main\java\com\scuplus\module\share\controller\LikeController.java
 ----------------------------------------------------------------
 
@@ -638,11 +916,48 @@
     [2] Result<PostVO> detail(@PathVariable Long postId)
          DOC: (no documentation)
 
-    [3] Long currentUserIdOrNull()
+    [3] Result<Void> delete(@PathVariable Long postId)
+         DOC: (no documentation)
+
+    [4] LoginUser currentLoginUser()
+         DOC: 取当前登录用户完整信息（含角色），未登录抛异常
+
+    [5] Long currentUserIdOrNull()
          DOC: 取当前用户 ID，未登录返回 null（不抛异常）
 
-    [4] Long currentUserId()
+    [6] Long currentUserId()
          DOC: 取当前用户 ID，未登录抛异常
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\share\dto\CommentCreateRequest.java
+----------------------------------------------------------------
+
+  CLASS: CommentCreateRequest
+
+  DATA MEMBERS:
+    · private String content
+    · private Boolean isAnonymous
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\share\dto\CommentVO.java
+----------------------------------------------------------------
+
+  CLASS: CommentVO
+
+  DATA MEMBERS:
+    · private Long id
+    · private Long postId
+    · private String nickname
+    · private String avatarUrl
+    · private String content
+    · private LocalDateTime createdAt
+    · private Boolean anonymous
+
+  METHODS: (none found)
 
 
 ----------------------------------------------------------------
@@ -693,6 +1008,7 @@
     · private Long userId
     · private String content
     · private Integer status
+    · private Integer isAnonymous
     · private LocalDateTime createdAt
 
   METHODS: (none found)
@@ -766,7 +1082,29 @@
 
   DATA MEMBERS: (none found)
 
-  METHODS: (none found)
+  METHODS:
+    [1] COUNT(*)
+         DOC: (no documentation)
+
+    [2] int countByMediaUrl(@Param("pattern") String pattern)
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\share\service\CommentService.java
+----------------------------------------------------------------
+
+  CLASS: CommentService
+  DOC  : 评论服务
+
+  DATA MEMBERS: (none found)
+
+  METHODS:
+    [1] Long create(Long postId, Long userId, CommentCreateRequest req)
+         DOC: 发评论（需登录） @param postId 被评论的帖子 @param userId 评论者 @param req    评论内容（含是否匿名） @return 评论 ID
+
+    [2] PageResult<CommentVO> listByPostId(Long postId, int page, int size)
+         DOC: 帖子评论列表（分页，按时间正序） @param postId 帖子 @param page 页码 @param size 每页条数
 
 
 ----------------------------------------------------------------
@@ -804,6 +1142,31 @@
 
     [3] PostVO detail(Long postId, Long currentUserId)
          DOC: 详情，返回全部字段（含 mediaUrls + 点赞状态）
+
+    [4] void delete(Long postId, Long operatorUserId, Integer operatorRole)
+         DOC: 删除帖子（软删：status 置 1，评论/点赞不物理删，查询自动过滤） @param postId        帖子ID @param operatorUserId 操作人ID @param operatorRole   操作人角色（0普通 1管理员）
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\share\service\impl\CommentServiceImpl.java
+----------------------------------------------------------------
+
+  CLASS: CommentServiceImpl
+
+  DATA MEMBERS:
+    · private final CommentMapper commentMapper
+    · private final PostMapper postMapper
+    · private final UserMapper userMapper
+
+  METHODS:
+    [1] Long create(Long postId, Long userId, CommentCreateRequest req)
+         DOC: (no documentation)
+
+    [2] PageResult<CommentVO> listByPostId(Long postId, int page, int size)
+         DOC: (no documentation)
+
+    [3] CommentVO convertToVO(Comment comment, Map<Long, User> userMap)
+         DOC: Comment → CommentVO，匿名处理评论者显示
 
 
 ----------------------------------------------------------------
@@ -852,7 +1215,16 @@
     [2] PageResult<PostVO> list(int page, int size)
          DOC: (no documentation)
 
-    [3] PostVO detail(Long postid,Long userid)
+    [3] PostVO detail(Long postid, Long userid)
+         DOC: (no documentation)
+
+    [4] PostVO convertToVO(Post post, Boolean withUser, Map<Long, User> usermap)
+         DOC: (no documentation)
+
+    [5] void delete(Long postId, Long operatorUserId, Integer operatorRole)
+         DOC: (no documentation)
+
+    [6] List<PostVO> converToListVo(List<Post> list, Boolean withUser)
          DOC: (no documentation)
 
 
@@ -875,6 +1247,7 @@
     · private String major
     · private String phone
     · private String email
+    · private Integer role
     · private LocalDateTime createdAt
     · private LocalDateTime updatedAt
 
