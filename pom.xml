@@ -62,6 +62,12 @@
             <artifactId>spring-boot-starter-cache</artifactId>
         </dependency>
 
+        <!-- Caffeine：本地进程缓存（抢课列表静态数据 + refreshAfterWrite 单飞刷新），版本由 Spring Boot parent 管理 -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+
         <!-- MyBatis-Plus：国产 ORM，基于 MyBatis 增强，内置 CRUD/分页（Spring Boot 3 专用 starter） -->
         <dependency>
             <groupId>com.baomidou</groupId>
@@ -154,6 +160,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
+        <!--ES： Elasticsearch 依赖支持-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
         </dependency>
     </dependencies>
 

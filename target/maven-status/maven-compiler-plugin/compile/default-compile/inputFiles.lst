@@ -1,5 +1,6 @@
 D:\scuplus-java\src\main\java\com\scuplus\common\annotation\RateLimit.java
 D:\scuplus-java\src\main\java\com\scuplus\common\aspect\RateLimitAspect.java
+D:\scuplus-java\src\main\java\com\scuplus\common\config\CaffineConfig.java
 D:\scuplus-java\src\main\java\com\scuplus\common\config\CorsConfig.java
 D:\scuplus-java\src\main\java\com\scuplus\common\config\MinioConfig.java
 D:\scuplus-java\src\main\java\com\scuplus\common\config\MybatisPlusConfig.java
@@ -23,15 +24,19 @@ D:\scuplus-java\src\main\java\com\scuplus\module\auth\dto\LoginResponse.java
 D:\scuplus-java\src\main\java\com\scuplus\module\auth\service\AuthService.java
 D:\scuplus-java\src\main\java\com\scuplus\module\auth\service\impl\AuthServiceImpl.java
 D:\scuplus-java\src\main\java\com\scuplus\module\course\controller\CourseSeckillController.java
+D:\scuplus-java\src\main\java\com\scuplus\module\course\controller\CourseViewController.java
 D:\scuplus-java\src\main\java\com\scuplus\module\course\dto\CourseChooseRequest.java
 D:\scuplus-java\src\main\java\com\scuplus\module\course\dto\CourseChooseVO.java
 D:\scuplus-java\src\main\java\com\scuplus\module\course\dto\CourseDeleteVO.java
+D:\scuplus-java\src\main\java\com\scuplus\module\course\dto\CourseVO.java
 D:\scuplus-java\src\main\java\com\scuplus\module\course\entiy\Course.java
 D:\scuplus-java\src\main\java\com\scuplus\module\course\entiy\CourseSelection.java
 D:\scuplus-java\src\main\java\com\scuplus\module\course\mapper\CourseMapper.java
 D:\scuplus-java\src\main\java\com\scuplus\module\course\mapper\CourseSelectionMapper.java
 D:\scuplus-java\src\main\java\com\scuplus\module\course\service\CourseSeckill.java
+D:\scuplus-java\src\main\java\com\scuplus\module\course\service\CourseView.java
 D:\scuplus-java\src\main\java\com\scuplus\module\course\service\Impl\CourseSeckillImpl.java
+D:\scuplus-java\src\main\java\com\scuplus\module\course\service\Impl\CourseViewImpl.java
 D:\scuplus-java\src\main\java\com\scuplus\module\oss\controller\OssController.java
 D:\scuplus-java\src\main\java\com\scuplus\module\oss\dto\AbortRequest.java
 D:\scuplus-java\src\main\java\com\scuplus\module\oss\dto\CompleteMultipartRequest.java

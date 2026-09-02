@@ -25,6 +25,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 @Service
@@ -34,7 +36,7 @@ public class CourseSeckillImpl implements CourseSeckill {
     private final CourseMapper courseMapper;
     private final CourseSelectionMapper selectionMapper;
     private final StringRedisTemplate redisTemplate;
-
+    private static final ConcurrentHashMap<Long, ReentrantLock> COURSE_LOCKS=new ConcurrentHashMap<>();
     private static final String PREFIX_STOCK = "stock";              // 缓存1：剩余名额
     private static final String PREFIX_USER_SLOTS = "user_slots";    // 缓存2：用户已占时间槽集合
     /** 不占时间槽的课程，course_slot 存这个占位值（nil 专指"缓存未初始化"，"no slot"专指"该课不占时间"，二者区分开） */
@@ -131,7 +133,7 @@ public class CourseSeckillImpl implements CourseSeckill {
      *  否则每门课的第一次抢课都会因集合未建而恒返回 -3（"课程不存在"）。 */
     private void ensureCourseStudents(Long courseId) {
         String setKey = PREFIX_COURSE_STUDENTS + ":{" + courseId + "}";
-        if (Boolean.FALSE.equals(redisTemplate.hasKey(setKey))) {
+        if (!redisTemplate.hasKey(setKey)) {
             redisTemplate.opsForSet().add(setKey, "init");
             redisTemplate.opsForSet().remove(setKey, "init");
         }
@@ -365,20 +367,60 @@ public class CourseSeckillImpl implements CourseSeckill {
         return Long.valueOf(s.substring(1, s.length() - 1));
     }
 
-    /** 缓存自愈：Lua 返回 -3/-5（某缓 key 缺失）时查库重建该课程缓存，随后 choose 重试一次。
-     *  用 setIfAbsent 而非 set 覆盖：若只是部分 key 丢，绝不能把已扣减的库存重置回满。 */
+    /** 缓存自愈：Lua 返回 -3/-5 或列表页读取触发时查库重建该课程缓存。
+     *  三重检查（快速路径 → 加锁 → 锁内二查）：只有"第一个真正看到缺失"的线程才查库，其余等完直接拿值。
+     *  关键：完整性必须看【stock + course_slot + course_students 三个 key】——
+     *   只看 stock 会在"course_students/course_slot 缺失而 stock 还在"时漏修（choose 的 -3/-5 依旧）；
+     *   stock 用 count 重算 + setIfAbsent，绝不重置回满容量（防超卖）。 */
     private void reloadCourseCache(Long courseId) {
-        Course c = courseMapper.selectById(courseId);
-        if (c == null) {
-            log.warn("缓存 key 缺失且课程 {} 库中也查不到，无法自愈", courseId);
+        if (isCourseCacheComplete(courseId)) {
             return;
         }
-        redisTemplate.opsForValue().setIfAbsent(PREFIX_STOCK + ":{" + courseId + "}", String.valueOf(c.getCapacity()));
-        redisTemplate.opsForValue().setIfAbsent(PREFIX_CAP + ":{" + courseId + "}", String.valueOf(c.getCapacity()));
-        redisTemplate.opsForValue().setIfAbsent(PREFIX_COURSE_SLOT + ":{" + courseId + "}",
-                c.getClassTime() != null ? c.getClassTime() : NO_SLOT);
-        ensureCourseStudents(courseId);
-        log.info("课程 {} 缓存已自愈重建", courseId);
+        ReentrantLock reentrantLock = COURSE_LOCKS.computeIfAbsent(courseId, k -> new ReentrantLock());
+        reentrantLock.lock();
+        try {
+            // 二次检查：等在锁上的线程可能已重建完
+            if (isCourseCacheComplete(courseId)) {
+                return;
+            }
+            Course c = courseMapper.selectById(courseId);
+            if (c == null) {
+                log.warn("缓存 key 缺失且课程 {} 库中也查不到，无法自愈", courseId);
+                return;
+            }
+            Long chosen = selectionMapper.selectCount(Wrappers.<CourseSelection>lambdaQuery()
+                    .eq(CourseSelection::getCourseId, courseId)
+                    .eq(CourseSelection::getStatus, 1));
+            // 库存 = 容量 - 已选（count 重算，防超卖）；setIfAbsent 不覆盖已扣减库存
+            redisTemplate.opsForValue().setIfAbsent(PREFIX_STOCK + ":{" + courseId + "}",
+                    String.valueOf(Math.max(c.getCapacity() - chosen, 0)));
+            redisTemplate.opsForValue().setIfAbsent(PREFIX_CAP + ":{" + courseId + "}", String.valueOf(c.getCapacity()));
+            redisTemplate.opsForValue().setIfAbsent(PREFIX_COURSE_SLOT + ":{" + courseId + "}",
+                    c.getClassTime() != null ? c.getClassTime() : NO_SLOT);
+            ensureCourseStudents(courseId);
+            log.info("课程 {} 缓存已自愈重建", courseId);
+        } finally {
+            reentrantLock.unlock();
+        }
+    }
+
+    /** 该课程三个动态相关 key 是否全在（stock/course_slot/course_students），全在才算缓存完整 */
+    private boolean isCourseCacheComplete(Long courseId) {
+        return redisTemplate.hasKey(PREFIX_STOCK + ":{" + courseId + "}")
+                && redisTemplate.hasKey(PREFIX_COURSE_SLOT + ":{" + courseId + "}")
+                && redisTemplate.hasKey(PREFIX_COURSE_STUDENTS + ":{" + courseId + "}");
+    }
+
+    /** 读取某课实时剩余名额：缓存缺失走 DCL 自愈（count 重算）。DB 也挂读不到时返回 null，交给上层降级。 */
+    public Integer remainingOf(Long courseId) {
+        reloadCourseCache(courseId);
+        String v = redisTemplate.opsForValue().get(PREFIX_STOCK + ":{" + courseId + "}");
+        return v == null ? null : Integer.parseInt(v);
+    }
+
+    /** 列表页批量取库存时构造 stock key（统一 key 格式，避免散落各处写死） */
+    public static String stockKeyOf(Long courseId) {
+        return PREFIX_STOCK + ":{" + courseId + "}";
     }
 
     private CourseSelection toEntiy(Long courseId, Long userId, Integer status, CourseSelection courseSelection) {

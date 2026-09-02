@@ -1,9 +1,11 @@
+com\scuplus\common\config\CaffineConfig.class
 com\scuplus\module\course\service\Impl\CourseSeckillImpl.class
 com\scuplus\module\course\dto\CourseChooseRequest.class
 com\scuplus\module\share\service\impl\LikeServiceImpl.class
 com\scuplus\common\config\S3Config.class
 com\scuplus\module\course\dto\CourseChooseVO.class
 com\scuplus\module\share\service\impl\PostServiceImpl.class
+com\scuplus\module\course\dto\CourseVO.class
 com\scuplus\module\user\mapper\UserCredentialMapper.class
 com\scuplus\common\config\MybatisPlusConfig.class
 com\scuplus\infrastructure\job\CourseReconcileJob.class
@@ -36,11 +38,14 @@ com\scuplus\module\share\controller\CommentController.class
 com\scuplus\common\trace\TraceIdFilter.class
 com\scuplus\common\exception\GlobalExceptionHandler.class
 com\scuplus\common\config\SecurityConfig.class
+com\scuplus\module\course\service\Impl\CourseViewImpl.class
 com\scuplus\module\user\mapper\UserMapper.class
 com\scuplus\common\security\SessionAuthFilter.class
 com\scuplus\infrastructure\job\FileCleanUpJob.class
 com\scuplus\module\share\service\impl\CommentServiceImpl.class
 com\scuplus\module\user\entity\User.class
+com\scuplus\module\course\service\CourseView.class
+com\scuplus\module\course\controller\CourseViewController.class
 com\scuplus\module\oss\dto\CompleteMultipartRequest.class
 com\scuplus\module\auth\service\impl\AuthServiceImpl.class
 com\scuplus\module\auth\dto\LoginRequest.class

@@ -64,3 +64,7 @@ minio:
   bucket: scuplus
   # 开发环境 bucket 设为公开读，上传后前端能直接访问返回的 URL
   public-read: true
+
+  # ====ES 搜索配置  =====
+elasticsearch:
+  uris:http://localhost:9200
