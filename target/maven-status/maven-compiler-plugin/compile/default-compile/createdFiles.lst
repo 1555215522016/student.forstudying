@@ -1,10 +1,18 @@
+com\scuplus\module\course\service\Impl\CourseSeckillImpl.class
+com\scuplus\module\course\dto\CourseChooseRequest.class
 com\scuplus\module\share\service\impl\LikeServiceImpl.class
 com\scuplus\common\config\S3Config.class
+com\scuplus\module\course\dto\CourseChooseVO.class
 com\scuplus\module\share\service\impl\PostServiceImpl.class
 com\scuplus\module\user\mapper\UserCredentialMapper.class
 com\scuplus\common\config\MybatisPlusConfig.class
+com\scuplus\infrastructure\job\CourseReconcileJob.class
+com\scuplus\module\course\mapper\CourseMapper.class
 com\scuplus\module\oss\dto\MultipartInitDTO.class
 com\scuplus\module\auth\service\AuthService.class
+com\scuplus\common\aspect\RateLimitAspect.class
+com\scuplus\module\course\dto\CourseDeleteVO.class
+com\scuplus\module\course\entiy\Course.class
 com\scuplus\module\oss\dto\AbortRequest.class
 com\scuplus\module\oss\dto\PartPresignDTO.class
 com\scuplus\ScuplusApplication.class
@@ -13,9 +21,11 @@ com\scuplus\module\share\entity\Post.class
 com\scuplus\module\oss\dto\PresignPartsDTO.class
 com\scuplus\module\share\entity\Like.class
 com\scuplus\module\share\mapper\LikeMapper.class
+com\scuplus\module\course\mapper\CourseSelectionMapper.class
 com\scuplus\module\share\mapper\CommentMapper.class
 com\scuplus\common\security\LoginUser.class
 com\scuplus\module\share\service\LikeService.class
+com\scuplus\module\course\controller\CourseSeckillController.class
 com\scuplus\module\auth\controller\AuthController.class
 com\scuplus\module\share\service\PostService.class
 com\scuplus\module\user\entity\UserCredential.class
@@ -23,6 +33,7 @@ com\scuplus\common\config\SwaggerConfig.class
 com\scuplus\module\share\mapper\PostMapper.class
 com\scuplus\module\share\entity\Comment.class
 com\scuplus\module\share\controller\CommentController.class
+com\scuplus\common\trace\TraceIdFilter.class
 com\scuplus\common\exception\GlobalExceptionHandler.class
 com\scuplus\common\config\SecurityConfig.class
 com\scuplus\module\user\mapper\UserMapper.class
@@ -36,6 +47,7 @@ com\scuplus\module\auth\dto\LoginRequest.class
 com\scuplus\module\share\dto\PostVO.class
 com\scuplus\module\oss\controller\OssController.class
 com\scuplus\common\result\PageResult.class
+com\scuplus\common\annotation\RateLimit.class
 com\scuplus\common\config\MinioConfig.class
 com\scuplus\module\auth\dto\LoginResponse.class
 com\scuplus\module\share\service\CommentService.class
@@ -46,7 +58,9 @@ com\scuplus\common\result\Result.class
 com\scuplus\module\oss\dto\PartDTO.class
 com\scuplus\module\oss\dto\PresignDTO.class
 com\scuplus\module\oss\dto\PresignPartsRequest.class
+com\scuplus\module\course\entiy\CourseSelection.class
 com\scuplus\module\oss\service\OssService.class
 com\scuplus\module\share\controller\PostController.class
 com\scuplus\module\share\controller\LikeController.class
 com\scuplus\common\exception\BusinessException.class
+com\scuplus\module\course\service\CourseSeckill.class

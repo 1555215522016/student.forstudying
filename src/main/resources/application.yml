@@ -33,6 +33,12 @@ mybatis-plus:
       # 主键策略：数据库自增
       id-type: auto
 
+# ===== 日志 =====
+logging:
+  pattern:
+    # [%X{traceId}] 打印 TraceIdFilter 生成的全链路 id；请求外的日志（启动等）显示为 []
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{traceId}] %logger{36} - %msg%n"
+
 # ===== SpringDoc / Swagger UI =====
 springdoc:
   swagger-ui:
