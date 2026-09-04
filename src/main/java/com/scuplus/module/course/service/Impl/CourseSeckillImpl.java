@@ -51,52 +51,37 @@ public class CourseSeckillImpl implements CourseSeckill {
 
 
     static {
-        // 抢课：三态原子判定（防重复 / 防时冲 / 防超卖），全部在一个 Lua 里，避免拆成多条命令产生竞态
-        Course_Choose_Script = new DefaultRedisScript<>(
-                "if redis.call('EXISTS',KEYS[4])==0 then" +
-                "return -3" +                                   // 课程不存在/未开放
-                "end" +
-                "if redis.call('SISMEMBER',KEYS[4],ARGV[1]) ==1 then" +
-                "return -1" +                                   // 已选过 → 防重复
-                "end" +
-                "local currentSlot=redis.call('GET',KEYS[3])" +
-                "if not currentSlot then" +
-                "return -5" +                                   // 缓存未初始化（nil ≠ "no slot"，区分"没接上"与"本就不占时间"）
-                "end" +
-                "if currentSlot ~= 'no slot' then" +
-                "if redis.call('SISMEMBER',KEYS[2],currentSlot)==1 then" +
-                "return -2" +                                   // 真时间槽已占用 → 防时冲（no slot 课不检查，否则两门不占课会误冲突）
-                "end" +
-                "end" +
-                "local remain=redis.call('DECR',KEYS[1])" +
-                "if remain<0 then" +
-                "redis.call('INCR',KEYS[1])" +                  // 负数 → 回滚，防超卖
-                "return -4" +
-                "end" +
-                "redis.call('SADD',KEYS[4],ARGV[1])" +
-                "if currentSlot ~= 'no slot' then redis.call('SADD',KEYS[2],currentSlot) end",
-                Long.class);
+        // 抢课：三态原子判定（防重复 / 防时冲 / 防超卖），全部在一个 Lua 里，避免拆成多条命令产生竞态。
+        // 注意：用文本块而非 + 拼接 —— 拼接会吃掉空格/换行，把 "then"+"return" 粘成 "thenreturn" 导致 Lua 编译失败（真实踩坑）。
+        Course_Choose_Script = new DefaultRedisScript<>("""
+                if redis.call('EXISTS',KEYS[1])==0 then return -3 end
+                if redis.call('SISMEMBER',KEYS[4],ARGV[1]) ==1 then return -1 end
+                local currentSlot=redis.call('GET',KEYS[3])
+                if not currentSlot then return -5 end
+                if currentSlot ~= 'no slot' then
+                    if redis.call('SISMEMBER',KEYS[2],currentSlot)==1 then return -2 end
+                end
+                local remain=redis.call('DECR',KEYS[1])
+                if remain<0 then redis.call('INCR',KEYS[1]) return -4 end
+                redis.call('SADD',KEYS[4],ARGV[1])
+                if currentSlot ~= 'no slot' then redis.call('SADD',KEYS[2],currentSlot) end
+                return 0
+                """, Long.class);
 
         // 退课：原子回补名额 + 释放"已选"和"时间槽"标记
         // KEYS[1]=stock KEYS[2]=userSlots KEYS[3]=courseSlot KEYS[4]=courseStudents KEYS[5]=cap
-        Course_Cancel_Script = new DefaultRedisScript<>(
-                "if redis.call('EXISTS',KEYS[4])==0 then" +
-                "return -3" +                                   // 课程不存在/未开放
-                "end" +
-                "if redis.call('SISMEMBER',KEYS[4],ARGV[1])==0 then" +
-                "return -5" +                                   // 未选过/已退过 → 防重复退
-                "end" +
-                "local cap=redis.call('GET',KEYS[5])" +
-                "local stock=redis.call('GET',KEYS[1])" +
-                "if cap and stock and tonumber(stock) >= tonumber(cap) then" +
-                "return -4" +                                   // 库存异常（不该退回），防御性拒绝
-                "end" +
-                "redis.call('INCR',KEYS[1])" +                  // ① 回补名额
-                "redis.call('SREM',KEYS[4],ARGV[1])" +          // ② 移出已选集合
-                "local slot=redis.call('GET',KEYS[3])" +
-                "if slot then redis.call('SREM',KEYS[2],slot) end" + // ③ 释放用户时间槽
-                "return 0",
-                Long.class);
+        Course_Cancel_Script = new DefaultRedisScript<>("""
+                if redis.call('EXISTS',KEYS[1])==0 then return -3 end
+                if redis.call('SISMEMBER',KEYS[4],ARGV[1])==0 then return -5 end
+                local cap=redis.call('GET',KEYS[5])
+                local stock=redis.call('GET',KEYS[1])
+                if cap and stock and tonumber(stock) >= tonumber(cap) then return -4 end
+                redis.call('INCR',KEYS[1])
+                redis.call('SREM',KEYS[4],ARGV[1])
+                local slot=redis.call('GET',KEYS[3])
+                if slot then redis.call('SREM',KEYS[2],slot) end
+                return 0
+                """, Long.class);
     }
     /**启动初始化，将课程的id放入本地缓存，防止发生大规模异常id攻击发生*/
     @PostConstruct
@@ -151,7 +136,7 @@ public class CourseSeckillImpl implements CourseSeckill {
         List<String> keys = Arrays.asList(stock, userSlots, courseSlot, courseStudents);
         log.debug("抢课请求开始：userId={}, courseId={}", userId, courseId);
         long start = System.currentTimeMillis();
-        Long result = redisTemplate.execute(Course_Choose_Script, keys, userId);
+        Long result = redisTemplate.execute(Course_Choose_Script, keys, String.valueOf(userId));
         long cost = System.currentTimeMillis() - start;
 
 // 1. 只有 Redis 耗时异常（比如网络抖动>50ms）才打 WARN
@@ -162,7 +147,7 @@ public class CourseSeckillImpl implements CourseSeckill {
         if (result == -3 || result == -5) {
             log.warn("课程缓存 key 缺失（result={}），查库重建后重试：courseId={}", result, courseId);
             reloadCourseCache(courseId);
-            result = redisTemplate.execute(Course_Choose_Script, keys, userId);
+            result = redisTemplate.execute(Course_Choose_Script, keys, String.valueOf(userId));
         }
         if (result == -3) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "课程不存在，请重新选课");
@@ -224,7 +209,7 @@ public class CourseSeckillImpl implements CourseSeckill {
 
         log.debug("退课请求开始：userId={}, courseId={}", userId, courseId);
         long start = System.currentTimeMillis();
-        Long result = redisTemplate.execute(Course_Cancel_Script, keys, userId);
+        Long result = redisTemplate.execute(Course_Cancel_Script, keys, String.valueOf(userId));
         long cost = System.currentTimeMillis() - start;
         // Redis 慢调用才告警，正常静默
         if (cost > 50) {
@@ -358,7 +343,7 @@ public class CourseSeckillImpl implements CourseSeckill {
                 PREFIX_COURSE_SLOT + ":{" + courseId + "}",
                 PREFIX_COURSE_STUDENTS + ":{" + courseId + "}",
                 PREFIX_CAP + ":{" + courseId + "}");
-        return redisTemplate.execute(Course_Cancel_Script, cancelKeys, userId);
+        return redisTemplate.execute(Course_Cancel_Script, cancelKeys, String.valueOf(userId));
     }
 
     /** "course_students:{123}" → 123 */
@@ -404,11 +389,12 @@ public class CourseSeckillImpl implements CourseSeckill {
         }
     }
 
-    /** 该课程三个动态相关 key 是否全在（stock/course_slot/course_students），全在才算缓存完整 */
+    /** 该课程缓存是否"初始化完整"：stock/cap/course_slot 三个 string key 在即可。
+     *  注意不含 course_students —— 空集合会被 Redis 自动删除，恒 EXISTS=0，不能作为"是否初始化"的判断依据。 */
     private boolean isCourseCacheComplete(Long courseId) {
         return redisTemplate.hasKey(PREFIX_STOCK + ":{" + courseId + "}")
-                && redisTemplate.hasKey(PREFIX_COURSE_SLOT + ":{" + courseId + "}")
-                && redisTemplate.hasKey(PREFIX_COURSE_STUDENTS + ":{" + courseId + "}");
+                && redisTemplate.hasKey(PREFIX_CAP + ":{" + courseId + "}")
+                && redisTemplate.hasKey(PREFIX_COURSE_SLOT + ":{" + courseId + "}");
     }
 
     /** 读取某课实时剩余名额：缓存缺失走 DCL 自愈（count 重算）。DB 也挂读不到时返回 null，交给上层降级。 */

@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.scuplus.common.exception.ErrorCode;
 import com.scuplus.common.result.Result;
 import com.scuplus.common.security.SessionAuthFilter;
+import com.scuplus.common.security.TestUserBypassFilter;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -42,8 +44,13 @@ public class SecurityConfig {
 
     private final ObjectMapper objectMapper;
 
-    public SecurityConfig(ObjectMapper objectMapper) {
+    /** 压测旁路开关：true 时注册 X-Test-UserId 过滤器（跳过登录），生产环境务必保持 false */
+    private final boolean testUserBypassEnabled;
+
+    public SecurityConfig(ObjectMapper objectMapper,
+                          @Value("${scuplus.test.user-bypass:false}") boolean testUserBypassEnabled) {
         this.objectMapper = objectMapper;
+        this.testUserBypassEnabled = testUserBypassEnabled;
     }
 
     @Bean
@@ -71,6 +78,11 @@ public class SecurityConfig {
                         }))
                 // 我们的 SessionAuthFilter 在认证过滤器之前执行，先恢复会话认证
                 .addFilterBefore(new SessionAuthFilter(), UsernamePasswordAuthenticationFilter.class);
+
+        // 压测旁路：仅配置开启时才进过滤器链（放在 SessionAuthFilter 之前，先注入身份）
+        if (testUserBypassEnabled) {
+            http.addFilterBefore(new TestUserBypassFilter(), SessionAuthFilter.class);
+        }
 
         return http.build();
     }

@@ -56,10 +56,15 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * 模拟学校统一认证
+     * Demo：任意学号 + TEST_PASSWORD 即可通过，首次登录自动建档。
+     * 放宽学号校验是为了让 JMeter 能用 2022001~2022999 模拟多用户并发抢课（单账号会被幂等挡住，压不出并发）。
      * TODO: 对接真实学校系统（https / 加密参数 / 可能验证码）
      */
     private void mockSchoolAuth(String studentId, String password) {
-        if (!(TEST_STUDENT_ID.equals(studentId) && TEST_PASSWORD.equals(password))) {
+        if (studentId == null || studentId.isBlank()) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "学号不能为空");
+        }
+        if (!TEST_PASSWORD.equals(password)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "学号或密码错误");
         }
     }

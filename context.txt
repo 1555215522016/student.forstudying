@@ -1,8 +1,8 @@
 ================================================================
  JCTX v2.1.0 - Java, Kotlin & Python Context Extractor
  Project : D:\scuplus-java
- Date    : 2026-08-29 14:08:15
- Files   : Java: 54 file(s) | POM: 1 file(s)
+ Date    : 2026-09-03 12:21:31
+ Files   : Java: 73 file(s) | POM: 1 file(s)
 ================================================================
 
 ================================================================
@@ -17,7 +17,11 @@
   │   │   │       └── scuplus\
   │   │   │           ├── common\
   │   │   │           │   ├── annotation\
+  │   │   │           │   │   └── RateLimit.java
+  │   │   │           │   ├── aspect\
+  │   │   │           │   │   └── RateLimitAspect.java
   │   │   │           │   ├── config\
+  │   │   │           │   │   ├── CaffineConfig.java
   │   │   │           │   │   ├── CorsConfig.java
   │   │   │           │   │   ├── MinioConfig.java
   │   │   │           │   │   ├── MybatisPlusConfig.java
@@ -35,9 +39,12 @@
   │   │   │           │   ├── security\
   │   │   │           │   │   ├── LoginUser.java
   │   │   │           │   │   └── SessionAuthFilter.java
+  │   │   │           │   ├── trace\
+  │   │   │           │   │   └── TraceIdFilter.java
   │   │   │           │   └── util\
   │   │   │           ├── infrastructure\
   │   │   │           │   └── job\
+  │   │   │           │       ├── CourseReconcileJob.java
   │   │   │           │       ├── FileCleanUpJob.java
   │   │   │           │       └── ShareJob.java
   │   │   │           ├── module\
@@ -51,6 +58,27 @@
   │   │   │           │   │       ├── impl\
   │   │   │           │   │       │   └── AuthServiceImpl.java
   │   │   │           │   │       └── AuthService.java
+  │   │   │           │   ├── course\
+  │   │   │           │   │   ├── controller\
+  │   │   │           │   │   │   ├── CourseSeckillController.java
+  │   │   │           │   │   │   └── CourseViewController.java
+  │   │   │           │   │   ├── dto\
+  │   │   │           │   │   │   ├── CourseChooseRequest.java
+  │   │   │           │   │   │   ├── CourseChooseVO.java
+  │   │   │           │   │   │   ├── CourseDeleteVO.java
+  │   │   │           │   │   │   └── CourseVO.java
+  │   │   │           │   │   ├── entiy\
+  │   │   │           │   │   │   ├── Course.java
+  │   │   │           │   │   │   └── CourseSelection.java
+  │   │   │           │   │   ├── mapper\
+  │   │   │           │   │   │   ├── CourseMapper.java
+  │   │   │           │   │   │   └── CourseSelectionMapper.java
+  │   │   │           │   │   └── service\
+  │   │   │           │   │       ├── Impl\
+  │   │   │           │   │       │   ├── CourseSeckillImpl.java
+  │   │   │           │   │       │   └── CourseViewImpl.java
+  │   │   │           │   │       ├── CourseSeckill.java
+  │   │   │           │   │       └── CourseView.java
   │   │   │           │   ├── oss\
   │   │   │           │   │   ├── controller\
   │   │   │           │   │   │   └── OssController.java
@@ -103,7 +131,8 @@
   │   │       ├── db\
   │   │       │   └── migration\
   │   │       │       ├── V1__init_schema.sql
-  │   │       │       └── V2__daily_share.sql
+  │   │       │       ├── V2__daily_share.sql
+  │   │       │       └── V3__course_grab.sql
   │   │       ├── mapper\
   │   │       ├── application-dev.yml
   │   │       ├── application-prod.yml
@@ -188,6 +217,12 @@
           <dependency>
               <groupId>org.springframework.boot</groupId>
               <artifactId>spring-boot-starter-cache</artifactId>
+          </dependency>
+  
+          <!-- Caffeine：本地进程缓存（抢课列表静态数据 + refreshAfterWrite 单飞刷新），版本由 Spring Boot parent 管理 -->
+          <dependency>
+              <groupId>com.github.ben-manes.caffeine</groupId>
+              <artifactId>caffeine</artifactId>
           </dependency>
   
           <!-- MyBatis-Plus：国产 ORM，基于 MyBatis 增强，内置 CRUD/分页（Spring Boot 3 专用 starter） -->
@@ -277,7 +312,21 @@
               <artifactId>h2</artifactId>
               <scope>test</scope>
           </dependency>
+  
+          <!-- Spring AOP 支持（包含 @Aspect 注解和切面代理） -->
+          <dependency>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-aop</artifactId>
+          </dependency>
+  
+          <!--ES： Elasticsearch 依赖支持-->
+          <dependency>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
+          </dependency>
       </dependencies>
+  
+  
   
       <build>
           <plugins>
@@ -338,6 +387,54 @@
 
   METHODS:
     [1] void main(String[] args)
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\common\annotation\RateLimit.java
+----------------------------------------------------------------
+
+  CLASS: RateLimit
+
+  DATA MEMBERS: (none found)
+
+  METHODS:
+    [1] int windowSeconds()
+         DOC: (no documentation)
+
+    [2] int maxRequests()
+         DOC: (no documentation)
+
+    [3] String message()
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\common\aspect\RateLimitAspect.java
+----------------------------------------------------------------
+
+  CLASS: RateLimitAspect
+
+  DATA MEMBERS:
+    · private final StringRedisTemplate redisTemplate
+    · private static final String REDIS_KEY_PREFIX
+    · static final RedisScript<Long> RATE_LIMIT_SCRIPT
+
+  METHODS:
+    [1] Object rateLimit(ProceedingJoinPoint joinPoint)
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\common\config\CaffineConfig.java
+----------------------------------------------------------------
+
+  CLASS: CaffineConfig
+
+  DATA MEMBERS: (none found)
+
+  METHODS:
+    [1] CacheManager cacheManager()
          DOC: (no documentation)
 
 
@@ -586,6 +683,32 @@
 
 
 ----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\common\trace\TraceIdFilter.java
+----------------------------------------------------------------
+
+  CLASS: TraceIdFilter
+
+  DATA MEMBERS:
+    · private static final String TRACE_ID_HEADER
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\infrastructure\job\CourseReconcileJob.java
+----------------------------------------------------------------
+
+  CLASS: CourseReconcileJob
+
+  DATA MEMBERS:
+    · private final CourseSeckillImpl courseSeckill
+
+  METHODS:
+    [1] void reconcile()
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
   FILE: src\main\java\com\scuplus\infrastructure\job\FileCleanUpJob.java
 ----------------------------------------------------------------
 
@@ -706,6 +829,271 @@
 
     [4] User createUser(String studentId)
          DOC: 首次登录自动建档：学号必须有，昵称头像等资料后续补充
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\course\controller\CourseSeckillController.java
+----------------------------------------------------------------
+
+  CLASS: CourseSeckillController
+
+  DATA MEMBERS:
+    · private final CourseSeckill courseSeckill
+
+  METHODS:
+    [1] Result<CourseDeleteVO> delete(@PathVariable Long courseId)
+         DOC: (no documentation)
+
+    [2] Long getUserId()
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\course\controller\CourseViewController.java
+----------------------------------------------------------------
+
+  CLASS: CourseViewController
+
+  DATA MEMBERS:
+    · private final CourseView courseView
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\course\dto\CourseChooseRequest.java
+----------------------------------------------------------------
+
+  CLASS: CourseChooseRequest
+
+  DATA MEMBERS:
+    · private Long courseID
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\course\dto\CourseChooseVO.java
+----------------------------------------------------------------
+
+  CLASS: CourseChooseVO
+
+  DATA MEMBERS:
+    · private Long id
+    · private Integer status
+    · private String message
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\course\dto\CourseDeleteVO.java
+----------------------------------------------------------------
+
+  CLASS: CourseDeleteVO
+
+  DATA MEMBERS:
+    · private String status
+    · private String message
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\course\dto\CourseVO.java
+----------------------------------------------------------------
+
+  CLASS: CourseVO
+
+  DATA MEMBERS:
+    · private Long id
+    · private String teacher
+    · private String classTime
+    · private Long capacity
+    · private String name
+    · private Long selectedCount
+    · private Boolean ifchoosen
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\course\entiy\Course.java
+----------------------------------------------------------------
+
+  CLASS: Course
+
+  DATA MEMBERS:
+    · private Long id
+    · private String code
+    · private String name
+    · private String teacher
+    · private Long capacity
+    · private Long selectedCount
+    · private String classTime
+    · private Integer status
+    · private Integer deleted
+    · private LocalDateTime createdAt
+    · private LocalDateTime updatedAt
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\course\entiy\CourseSelection.java
+----------------------------------------------------------------
+
+  CLASS: CourseSelection
+
+  DATA MEMBERS:
+    · private Long id
+    · private Long userId
+    · private Long courseId
+    · private Integer status
+    · private LocalDateTime createdAt
+    · private LocalDateTime updatedAt
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\course\mapper\CourseMapper.java
+----------------------------------------------------------------
+
+  CLASS: CourseMapper
+
+  DATA MEMBERS: (none found)
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\course\mapper\CourseSelectionMapper.java
+----------------------------------------------------------------
+
+  CLASS: CourseSelectionMapper
+
+  DATA MEMBERS: (none found)
+
+  METHODS: (none found)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\course\service\CourseSeckill.java
+----------------------------------------------------------------
+
+  CLASS: CourseSeckill
+
+  DATA MEMBERS: (none found)
+
+  METHODS:
+    [1] CourseChooseVO choose(Long userId,Long courseId)
+         DOC: (no documentation)
+
+    [2] CourseDeleteVO delete(Long userId,Long courseId)
+         DOC: (no documentation)
+
+    [3] Integer remainingOf(Long courseId)
+         DOC: 读取某课实时剩余名额（缓存缺失自愈；DB 也不可用时返回 null）
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\course\service\CourseView.java
+----------------------------------------------------------------
+
+  CLASS: CourseView
+
+  DATA MEMBERS: (none found)
+
+  METHODS:
+    [1] PageResult<CourseVO> list(Long userid,int page,int size,String className,String teacherName)
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\course\service\Impl\CourseSeckillImpl.java
+----------------------------------------------------------------
+
+  CLASS: CourseSeckillImpl
+
+  DATA MEMBERS:
+    · private final CourseMapper courseMapper
+    · private final CourseSelectionMapper selectionMapper
+    · private final StringRedisTemplate redisTemplate
+    · private static final String PREFIX_STOCK   // 缓存1：剩余名额
+    · private static final String PREFIX_USER_SLOTS   // 缓存2：用户已占时间槽集合
+    · private static final String NO_SLOT
+    · private static final String PREFIX_COURSE_SLOT   // 缓存3：课程时间槽（class_time 相同=同一槽=冲突）
+    · private static final String PREFIX_COURSE_STUDENTS   // 缓存4：课程已选学生集合
+    · private static final String PREFIX_CAP   // 缓存5：课程原始容量（退课/对账用）
+    · private static final Set<Long> Valid_CourseIds
+    · static final RedisScript<Long> Course_Choose_Script
+    · static final RedisScript<Long> Course_Cancel_Script
+
+  METHODS:
+    [1] void initCourseIdcache()
+         DOC: (no documentation)
+
+    [2] void initCourseCache()
+         DOC: (no documentation)
+
+    [3] void ensureCourseStudents(Long courseId)
+         DOC: (no documentation)
+
+    [4] CourseChooseVO choose(Long userId, Long courseId)
+         DOC: (no documentation)
+
+    [5] CourseDeleteVO delete(Long userId, Long courseId)
+         DOC: (no documentation)
+
+    [6] void reconcile()
+         DOC: 两条规则（先方向1后方向2）： 方向1 — Redis 有"已选"标记、MySQL 无 status=1 行（落库失败+补偿也失败残留）： 用户看到的"失败"是最终结果，绝不翻案 → 只清 Redis 标记 + 还名额 + 释放时间槽 方向2 — MySQL 有 status=1 行、Redis 无标记（Redis 被清/重启漏建）： 补 Redis 标记 + 用"容量-已选数"重算库存（不靠 INCR 累加，防漂移）
+
+    [7] void compensate(Long userId, Long courseId)
+         DOC: (no documentation)
+
+    [8] Long runCancelScript(Long userId, Long courseId)
+         DOC: 复用退课脚本：原子回补名额 + 清已选标记 + 释放时间槽，返回脚本结果码
+
+    [9] Long courseIdOf(String studentsKey)
+         DOC: "course_students:{123}" → 123
+
+    [10] void reloadCourseCache(Long courseId)
+         DOC: 三重检查（快速路径 → 加锁 → 锁内二查）：只有"第一个真正看到缺失"的线程才查库，其余等完直接拿值。 关键：完整性必须看【stock + course_slot + course_students 三个 key】—— 只看 stock 会在"course_students/course_slot 缺失而 stock 还在"时漏修（choose 的 -3/-5 依旧）；
+
+    [11] boolean isCourseCacheComplete(Long courseId)
+         DOC: 该课程三个动态相关 key 是否全在（stock/course_slot/course_students），全在才算缓存完整
+
+    [12] Integer remainingOf(Long courseId)
+         DOC: 读取某课实时剩余名额：缓存缺失走 DCL 自愈（count 重算）。DB 也挂读不到时返回 null，交给上层降级。
+
+    [13] String stockKeyOf(Long courseId)
+         DOC: 列表页批量取库存时构造 stock key（统一 key 格式，避免散落各处写死）
+
+    [14] CourseSelection toEntiy(Long courseId, Long userId, Integer status, CourseSelection courseSelection)
+         DOC: (no documentation)
+
+
+----------------------------------------------------------------
+  FILE: src\main\java\com\scuplus\module\course\service\Impl\CourseViewImpl.java
+----------------------------------------------------------------
+
+  CLASS: CourseViewImpl
+
+  DATA MEMBERS:
+    · private final CourseMapper courseMapper
+    · private final CourseSelectionMapper selectionMapper
+    · private final StringRedisTemplate redisTemplate
+    · private static final String PREFIX_COURSE_STUDENTS
+    · private static final String CACHE_KEY
+    · private final AtomicInteger degradeCount
+
+  METHODS:
+    [1] List<Course> loadActiveCourses(String key)
+         DOC: (no documentation)
+
+    [2] PageResult<CourseVO> list(Long userid, int page, int size, String className, String teacherName)
+         DOC: (no documentation)
 
 
 ----------------------------------------------------------------

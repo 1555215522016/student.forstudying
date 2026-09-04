@@ -22,7 +22,7 @@
 - 应用: `localhost:8080`，Swagger: `/swagger-ui.html`
 - 构建: `mvnw.cmd compile` / `mvnw.cmd spring-boot:run` / `mvnw.cmd test`
 
-## 当前进度（2026-09-01）
+## 当前进度（2026-09-02）
 - [x] Step 0 脚手架：pom、Maven Wrapper、docker-compose、多环境配置、启动类
 - [x] Step 1 基础设施：统一响应4件套 + Security(Session/白名单) + MybatisPlusConfig分页 + CorsConfig + SwaggerConfig
 - [x] Step 2 认证模块：t_user/t_user_credential 表 + 实体/Mapper + AuthService(模拟认证/自动建档) + AuthController(login/logout/me)，全链路测试通过
@@ -36,20 +36,24 @@
   - [x] 管理员删帖（角色 role + 软删 status=1）
   - [x] OSS 预签名上传（MinIO + bucket自动创建/公开读 + 前端直传，链路测试通过）
   - [x] 分片上传/断点续传（前端直传分片：presign-parts 发每片签名 URL，文件不经后端；listParts 断点续传；complete 合并前校验数量，合并直接用 MinIO 记录的 etag —— 前端无法伪造；测试通过）
-- [ ] 抢课模块 ★（P1 核心已完成，P2 限流进行中，P3 通知待做）
+- [ ] 抢课模块 ★（P1 核心+浏览列表已完成，P2 限流进行中，P3 通知待做）
   - [x] 表结构 V3：t_course(选修课) + t_course_selection(选课记录，status 状态机 0待处理/1已选/2已退/3失败，UNIQUE(user_id,course_id) 幂等)
   - [x] 初始数据 200 门选修课（40门×5班×100人，总名额 20000，匹配 1.5w 人抢课场景）
   - [x] 抢课 Lua 三态原子判定（防重复-1 / 防时冲-2 / 防超卖-4）；"no slot" 哨兵区分"不占时间"与"缓存没接上"(nil→-5)
   - [x] 退课 Lua 原子回补名额 + 释放已选/时间槽标记；MySQL 条件更新(status=1→2)防双退
   - [x] 启动初始化 initCourseCache：setIfAbsent 灌 stock/cap/course_slot（重启不重置库存=防超卖）+ ensureCourseStudents 建空集（修首单恒-3 bug）
   - [x] 提交点架构：Redis 裁决 → MySQL 同步落库 = 提交点 → 幂等(uk 唯一索引 + DuplicateKeyException 当成功) → 原子补偿(compensate 复用 cancel 脚本) → 对账兜底(设计留存，待实现)
-  - [x] 防穿透：Valid_CourseIds 本地精确白名单（200课量级，比布隆零误判）+ -3/-5 缓存自愈 reloadCourseCache（查库重建 + 重试一次）
+  - [x] 防穿透：Valid_CourseIds 本地精确白名单（200课量级，比布隆零误判）+ -3/-5 缓存自愈 reloadCourseCache（DCL 三重检查 + 完整性看三 key stock/course_slot/course_students + count 重算防超卖）
   - [x] 日志规范：热路径 DEBUG / 异常 WARN / 严重 ERROR / INFO 只给低频节点；慢调用告警 Redis>50ms、MySQL>100ms
   - [x] 全链路追踪：TraceIdFilter(MDC + X-Trace-Id 响应头) + logging.pattern.console 输出 [%X{traceId}]
   - [ ] P2 滑动窗口限流 AOP @RateLimit（注解+切面骨架已建，待完成）
   - [ ] P3 RocketMQ 异步通知（抢课成功 → 微信/站内信）+ 消费端幂等去重 + MDC 透传
-  - [ ] 对账任务 @Scheduled（redis 有标 DB 无行→补插；DB 有行 redis 无标→补标记），复用 ShareJob 模式
+  - [x] 对账任务 CourseReconcileJob @Scheduled 5min：方向1(Redis 有标 DB 无行→复用 cancel 脚本清幽灵标记+还名额，用户看到的失败是终局不翻案)、方向2(DB 有行 Redis 无标→补标记 + 按"容量-已选"重算库存)；复用 ShareJob 模式
   - [ ] JMeter 压测报告（QPS / 延迟 / 超卖验证：500 人抢 10 座）
+  - [x] 抢课页浏览列表：CourseView/Impl + GET /api/v1/course
+    - [x] 静态/动态分离：静态(课名/老师等)走 Caffeine LoadingCache refreshAfterWrite(30s)+expireAfterWrite(24h)硬兜底（刷新失败留旧值=读脏降级）；动态(已选人数/我已选)走 Redis，一次 Lua 批量取本页 SCARD+SISMEMBER
+    - [x] 降级三级：Redis 挂→DB GROUP BY 兜底；DB 也挂→selectedCount=-1(名额紧张)，库存绝不返回旧数字；只有静态弱一致数据才允许读脏
+    - [x] 关键词搜索(className 课程名 / teacherName 老师名，StrUtil 忽略大小写)；CourseVO 补 id + ifchoosen(前端置灰)
 - [ ] 通知模块（点赞/评论提醒，WebSocket/SSE）
 - [ ] 私信模块（WebSocket 双向，可选）
 （已砍：成绩绩点、课程表 —— 爬取难验证、技术一般、面试回报率低）
@@ -82,9 +86,11 @@
 - 抢课：**裁决在 Redis(Lua 原子扣减)**，**提交点在 MySQL(同步落库，通知一定在落库后发)**，**幂等靠唯一索引**，**补偿复用退课脚本**，对账兜底残余窗口(5min)
 - 抢课日志：热路径只让 WARN/ERROR 出声（DEBUG 记细节、慢调用 >50ms/>100ms 告警）；全链路 = 每请求 traceId 进 MDC + 响应头回写，日志 pattern 输出 [%X{traceId}]
 - 防穿透：200 课量级用**本地精确白名单**（非布隆，零误判零内存代价）；攻击分两类——假 id 洪水白名单挡、真 id 洪水靠 @RateLimit 限流挡
+- 缓存降级红线：**强一致数据（库存）绝不返回旧值**——只能"重算准"或"模糊信号(-1 名额紧张)"；只有弱一致静态数据才允许读脏
+- 列表缓存：静态/动态分离；**静态 Caffeine refreshAfterWrite 单飞刷新**（200课单实例，比"L1 Caffeine+L2 Redis+DB"两级更省——L2 在单实例是纯负债）
 
 ## 技术点取舍（面试的"技术判断力"）
-- 用：Redis(Lua 原子扣减/幂等/缓存自愈)、同步落库提交点+原子补偿、滑动窗口限流+AOP @RateLimit、RocketMQ(异步通知 **非**削峰)、traceId 全链路、OSS 预签名(MinIO) 前端直传、Spring WebSocket
+- 用：Caffeine(refreshAfterWrite 单飞/读脏降级)、Redis(Lua 原子扣减/幂等/缓存自愈/批量 SCARD+SISMEMBER)、同步落库提交点+原子补偿、滑动窗口限流+AOP @RateLimit、RocketMQ(异步通知 **非**削峰)、traceId 全链路、OSS 预签名(MinIO) 前端直传、Spring WebSocket
 - 砍（能讲清理由）：MQ削峰(量级算过：峰值 ~3000/s，单机 MySQL 同步就够)、布隆过滤器(200课用本地白名单平替零误判)、ShardingSphere、Gateway、zstd、Pod监控、hprof、Jedis Pipeline
 - 可选：IDEA Profiler、GC 日志
 

@@ -48,6 +48,7 @@ com\scuplus\module\course\service\CourseView.class
 com\scuplus\module\course\controller\CourseViewController.class
 com\scuplus\module\oss\dto\CompleteMultipartRequest.class
 com\scuplus\module\auth\service\impl\AuthServiceImpl.class
+com\scuplus\common\security\TestUserBypassFilter.class
 com\scuplus\module\auth\dto\LoginRequest.class
 com\scuplus\module\share\dto\PostVO.class
 com\scuplus\module\oss\controller\OssController.class

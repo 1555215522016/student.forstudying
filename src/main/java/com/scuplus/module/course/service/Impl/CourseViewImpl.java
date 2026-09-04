@@ -65,13 +65,14 @@ public class CourseViewImpl implements CourseView {
 
     /** 批量动态数据：一次 EVAL 拿本页每门课 已选人数(SCARD) + 该用户是否已选(SISMEMBER)。
      *  结果按 [card1, member1, card2, member2...] 交替返回 */
-    static final RedisScript<List> BATCH_VIEW_SCRIPT = new DefaultRedisScript<>(
-            "local res = {}" +
-            "for i = 1, #KEYS do" +
-            "  res[(i - 1) * 2 + 1] = redis.call('SCARD', KEYS[i])" +
-            "  res[(i - 1) * 2 + 2] = redis.call('SISMEMBER', KEYS[i], ARGV[1])" +
-            "end" +
-            "return res", List.class);
+    static final RedisScript<List> BATCH_VIEW_SCRIPT = new DefaultRedisScript<>("""
+            local res = {}
+            for i = 1, #KEYS do
+                res[(i - 1) * 2 + 1] = redis.call('SCARD', KEYS[i])
+                res[(i - 1) * 2 + 2] = redis.call('SISMEMBER', KEYS[i], ARGV[1])
+            end
+            return res
+            """, List.class);
 
     @Override
     public PageResult<CourseVO> list(Long userid, int page, int size, String className, String teacherName) {

@@ -21,13 +21,24 @@ spring:
 
 server:
   port: 8080
+  # 抢课瞬间 ~7000 TCP 连接涌入的兜底（线程数别乱加，真正要调的是 Hikari 池）
+  tomcat:
+    # 处理请求的线程：峰值 3000/s × ~10ms ≈ 30 就够，默认 200 已有余量，不卷
+    threads:
+      max: 200
+    # 内核等待队列：瞬时超出线程能力时先排队而不是直接拒绝，给 7000 人涌入留缓冲
+    accept-count: 1000
+    # 最大 TCP 连接数：默认 8192 已够 7000 并发，显式写 10000 留余量
+    max-connections: 10000
 
 # ===== MyBatis-Plus 全局配置 =====
 mybatis-plus:
   configuration:
     # 数据库下划线字段 user_id 自动映射成 Java 驼峰属性 userId
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # 压测提醒：StdOutImpl 会把每条 SQL 打到控制台（10万次压测=同步写盘拖垮吞吐）。
+    # 调试想开 SQL 日志时改成 StdOutImpl，压测务必用 NoLoggingImpl。
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
   global-config:
     db-config:
       # 主键策略：数据库自增
@@ -68,3 +79,4 @@ minio:
   # ====ES 搜索配置  =====
 elasticsearch:
   uris:http://localhost:9200
+

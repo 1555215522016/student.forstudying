@@ -22,6 +22,8 @@ services:
       # 统一用 utf8mb4（支持中文和 emoji）
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+      # 压测优化：每次提交不强制 fsync 落盘，改为每秒组提交刷一次（写入快，最多丢 1 秒数据，仅 dev/压测用）
+      - --innodb-flush-log-at-trx-commit=2
     healthcheck:
       # 容器健康检查：docker compose ps 时能看容器是否就绪
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot123456"]

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS t_post (
     id             BIGINT      NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     user_id        BIGINT      NOT NULL COMMENT '发布者用户ID',
     content        TEXT        COMMENT '文字内容',
+    is_anonymous   TINYINT     NOT NULL DEFAULT 0 COMMENT '是否匿名：0否 1是',
     media_urls     JSON        COMMENT '图片/视频地址数组，如 ["/img/a.jpg","/video/b.mp4"]',
     like_count     INT         NOT NULL DEFAULT 0 COMMENT '点赞数（延迟落库维护）',
     dislike_count  INT         NOT NULL DEFAULT 0 COMMENT '点踩数（延迟落库维护）',

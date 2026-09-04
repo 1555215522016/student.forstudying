@@ -1,0 +1,12 @@
+if redis.call('EXISTS',KEYS[1])==0 then return -3 end
+if redis.call('SISMEMBER',KEYS[4],ARGV[1]) ==1 then return -1 end
+local currentSlot=redis.call('GET',KEYS[3])
+if not currentSlot then return -5 end
+if currentSlot ~= 'no slot' then
+if redis.call('SISMEMBER',KEYS[2],currentSlot)==1 then return -2 end
+end
+local remain=redis.call('DECR',KEYS[1])
+if remain<0 then redis.call('INCR',KEYS[1]) return -4 end
+redis.call('SADD',KEYS[4],ARGV[1])
+if currentSlot ~= 'no slot' then redis.call('SADD',KEYS[2],currentSlot) end
+return 0

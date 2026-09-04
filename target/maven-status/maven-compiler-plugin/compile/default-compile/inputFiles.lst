@@ -14,6 +14,7 @@ D:\scuplus-java\src\main\java\com\scuplus\common\result\PageResult.java
 D:\scuplus-java\src\main\java\com\scuplus\common\result\Result.java
 D:\scuplus-java\src\main\java\com\scuplus\common\security\LoginUser.java
 D:\scuplus-java\src\main\java\com\scuplus\common\security\SessionAuthFilter.java
+D:\scuplus-java\src\main\java\com\scuplus\common\security\TestUserBypassFilter.java
 D:\scuplus-java\src\main\java\com\scuplus\common\trace\TraceIdFilter.java
 D:\scuplus-java\src\main\java\com\scuplus\infrastructure\job\CourseReconcileJob.java
 D:\scuplus-java\src\main\java\com\scuplus\infrastructure\job\FileCleanUpJob.java
