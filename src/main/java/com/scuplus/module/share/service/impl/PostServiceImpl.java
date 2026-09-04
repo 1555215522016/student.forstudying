@@ -8,6 +8,7 @@ import com.scuplus.common.result.PageResult;
 import com.scuplus.module.share.dto.PostCreateRequest;
 import com.scuplus.module.share.dto.PostVO;
 import com.scuplus.module.share.entity.Post;
+import com.scuplus.module.share.mapper.PostDocumentMapper;
 import com.scuplus.module.share.mapper.PostMapper;
 import com.scuplus.module.user.entity.User;
 import com.scuplus.module.user.mapper.UserMapper;
@@ -27,6 +28,8 @@ import java.util.stream.Collectors;
 public class PostServiceImpl implements PostService {
     private final PostMapper postMapper;
     private final UserMapper userMapper;
+    private final PostDocumentMapper postDocumentMapper;
+    private final com.scuplus.module.search.service.PostSearchService search;
     private final StringRedisTemplate redisTemplate;
     private static final String KEY_LIKES = "post:%d:likes";
     private static final String KEY_DISLIKES = "post:%d:dislikes";
@@ -40,6 +43,7 @@ public class PostServiceImpl implements PostService {
         post.setMediaUrls(request.getMediaUrls());
         post.setIsAnonymous(Boolean.TRUE.equals(request.getIsAnonymous()) ? 1 : 0);
         postMapper.insert(post);
+        search.save(postDocumentMapper.toDocument(post));
         return post.getId();
     }
 

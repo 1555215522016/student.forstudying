@@ -64,8 +64,31 @@ services:
       - minio_data:/data
     command: server /data --console-address ":9001"
 
+  # ===== Elasticsearch：帖子搜索（官方镜像 + 中文分析插件）=====
+  elasticsearch:
+    build: ./docker/elasticsearch
+    container_name: scuplus-es
+    restart: unless-stopped
+    environment:
+      # 单节点开发模式
+      - discovery.type=single-node
+      # 本地开发关闭安全认证，Spring 连接不用配账号密码
+      - xpack.security.enabled=false
+      # 限制堆内存，避免和本机 MySQL/Redis/App 抢内存
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health >/dev/null || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 30
+
 # ===== 数据卷声明 =====
 volumes:
   mysql_data:
   redis_data:
   minio_data:
+  es_data:

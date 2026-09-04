@@ -25,7 +25,9 @@ server:
   tomcat:
     # 处理请求的线程：峰值 3000/s × ~10ms ≈ 30 就够，默认 200 已有余量，不卷
     threads:
-      max: 200
+      max: 400
+
+
     # 内核等待队列：瞬时超出线程能力时先排队而不是直接拒绝，给 7000 人涌入留缓冲
     accept-count: 1000
     # 最大 TCP 连接数：默认 8192 已够 7000 并发，显式写 10000 留余量
@@ -78,5 +80,5 @@ minio:
 
   # ====ES 搜索配置  =====
 elasticsearch:
-  uris:http://localhost:9200
+  uris: http://localhost:9200
 

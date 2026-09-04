@@ -1,0 +1,50 @@
+{
+  "抢课" : {
+    "transaction" : "抢课",
+    "sampleCount" : 6000,
+    "errorCount" : 804,
+    "errorPct" : 13.4,
+    "meanResTime" : 6121.954833333325,
+    "medianResTime" : 5502.0,
+    "minResTime" : 182.0,
+    "maxResTime" : 10533.0,
+    "pct1ResTime" : 9662.900000000001,
+    "pct2ResTime" : 9983.95,
+    "pct3ResTime" : 10209.97,
+    "throughput" : 557.9319323042589,
+    "receivedKBytesPerSec" : 485.6681234889344,
+    "sentKBytesPerSec" : 103.57810175283616
+  },
+  "Total" : {
+    "transaction" : "Total",
+    "sampleCount" : 7000,
+    "errorCount" : 804,
+    "errorPct" : 11.485714,
+    "meanResTime" : 5539.944285714275,
+    "medianResTime" : 4994.0,
+    "minResTime" : 182.0,
+    "maxResTime" : 10533.0,
+    "pct1ResTime" : 9508.900000000001,
+    "pct2ResTime" : 9952.95,
+    "pct3ResTime" : 10197.98,
+    "throughput" : 592.1163931652851,
+    "receivedKBytesPerSec" : 494.3299568600914,
+    "sentKBytesPerSec" : 112.35986798976485
+  },
+  "HTTP Request" : {
+    "transaction" : "HTTP Request",
+    "sampleCount" : 1000,
+    "errorCount" : 0,
+    "errorPct" : 0.0,
+    "meanResTime" : 2047.8810000000024,
+    "medianResTime" : 2031.0,
+    "minResTime" : 1514.0,
+    "maxResTime" : 2567.0,
+    "pct1ResTime" : 2435.0,
+    "pct2ResTime" : 2481.0,
+    "pct3ResTime" : 2529.98,
+    "throughput" : 279.79854504756577,
+    "receivedKBytesPerSec" : 173.78112758813654,
+    "sentKBytesPerSec" : 59.99984698517068
+  }
+}

@@ -30,12 +30,14 @@ com\scuplus\module\share\service\LikeService.class
 com\scuplus\module\course\controller\CourseSeckillController.class
 com\scuplus\module\auth\controller\AuthController.class
 com\scuplus\module\share\service\PostService.class
+com\scuplus\module\share\entity\PostDocument.class
 com\scuplus\module\user\entity\UserCredential.class
 com\scuplus\common\config\SwaggerConfig.class
 com\scuplus\module\share\mapper\PostMapper.class
 com\scuplus\module\share\entity\Comment.class
 com\scuplus\module\share\controller\CommentController.class
 com\scuplus\common\trace\TraceIdFilter.class
+com\scuplus\module\share\mapper\PostDocumentMapperImpl.class
 com\scuplus\common\exception\GlobalExceptionHandler.class
 com\scuplus\common\config\SecurityConfig.class
 com\scuplus\module\course\service\Impl\CourseViewImpl.class
@@ -48,6 +50,7 @@ com\scuplus\module\course\service\CourseView.class
 com\scuplus\module\course\controller\CourseViewController.class
 com\scuplus\module\oss\dto\CompleteMultipartRequest.class
 com\scuplus\module\auth\service\impl\AuthServiceImpl.class
+com\scuplus\module\share\mapper\PostDocumentMapper.class
 com\scuplus\common\security\TestUserBypassFilter.class
 com\scuplus\module\auth\dto\LoginRequest.class
 com\scuplus\module\share\dto\PostVO.class
@@ -67,6 +70,7 @@ com\scuplus\module\oss\dto\PresignPartsRequest.class
 com\scuplus\module\course\entiy\CourseSelection.class
 com\scuplus\module\oss\service\OssService.class
 com\scuplus\module\share\controller\PostController.class
+com\scuplus\module\search\service\PostSearchService.class
 com\scuplus\module\share\controller\LikeController.class
 com\scuplus\common\exception\BusinessException.class
 com\scuplus\module\course\service\CourseSeckill.class
