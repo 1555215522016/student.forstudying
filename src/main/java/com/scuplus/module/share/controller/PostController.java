@@ -7,6 +7,8 @@ import com.scuplus.common.result.Result;
 import com.scuplus.common.security.LoginUser;
 import com.scuplus.module.share.dto.PostCreateRequest;
 import com.scuplus.module.share.dto.PostVO;
+import com.scuplus.module.share.entity.PostDocument;
+import com.scuplus.module.share.service.PostSearchService;
 import com.scuplus.module.share.service.PostService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,7 @@ import java.util.List;
 public class PostController {
 
     private final PostService postService;
+    private final PostSearchService postSearchService;
 
     /** 发帖：登录后可以发，支持匿名 */
     @PostMapping
@@ -47,6 +50,15 @@ public class PostController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
         return Result.success(postService.list(page, size));
+    }
+
+    /** 搜索：IK 分词匹配帖子正文，公开访问，分页 */
+    @GetMapping("/search")
+    public Result<List<PostDocument>> search(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return Result.success(postSearchService.search(keyword, page, size));
     }
 
     /** 详情：公开访问，返回全部字段 */

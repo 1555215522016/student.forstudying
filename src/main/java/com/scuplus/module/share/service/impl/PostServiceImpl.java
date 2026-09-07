@@ -12,6 +12,7 @@ import com.scuplus.module.share.mapper.PostDocumentMapper;
 import com.scuplus.module.share.mapper.PostMapper;
 import com.scuplus.module.user.entity.User;
 import com.scuplus.module.user.mapper.UserMapper;
+import com.scuplus.module.share.service.PostSearchService;
 import com.scuplus.module.share.service.PostService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -29,7 +30,7 @@ public class PostServiceImpl implements PostService {
     private final PostMapper postMapper;
     private final UserMapper userMapper;
     private final PostDocumentMapper postDocumentMapper;
-    private final com.scuplus.module.search.service.PostSearchService search;
+    private final PostSearchService search;
     private final StringRedisTemplate redisTemplate;
     private static final String KEY_LIKES = "post:%d:likes";
     private static final String KEY_DISLIKES = "post:%d:dislikes";
@@ -133,9 +134,12 @@ public class PostServiceImpl implements PostService {
         if (!isOwner && !isAdmin) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "无权删除该帖子");
         }
-        // 软删：只改 status，不动索引、不动评论/点赞（查询自动过滤）
+        // 软删：只改 status，评论/点赞保留（查询自动过滤）
         post.setStatus(1);
         postMapper.updateById(post);
+        // 同步软删到 ES：status 置 1 后，搜索过滤(status=0)就不会再命中它
+        // ES 故障不影响删除主流程，save 内部已容错
+        search.save(postDocumentMapper.toDocument(post));
     }
 
     public List<PostVO> converToListVo(List<Post> list, Boolean withUser) {

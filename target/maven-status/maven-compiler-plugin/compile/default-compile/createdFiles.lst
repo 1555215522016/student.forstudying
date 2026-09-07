@@ -70,7 +70,7 @@ com\scuplus\module\oss\dto\PresignPartsRequest.class
 com\scuplus\module\course\entiy\CourseSelection.class
 com\scuplus\module\oss\service\OssService.class
 com\scuplus\module\share\controller\PostController.class
-com\scuplus\module\search\service\PostSearchService.class
+com\scuplus\module\share\service\PostSearchService.class
 com\scuplus\module\share\controller\LikeController.class
 com\scuplus\common\exception\BusinessException.class
 com\scuplus\module\course\service\CourseSeckill.class
