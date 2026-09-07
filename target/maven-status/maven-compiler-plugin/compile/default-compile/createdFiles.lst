@@ -1,4 +1,5 @@
 com\scuplus\common\config\CaffineConfig.class
+com\scuplus\module\notify\entity\Announcement.class
 com\scuplus\module\course\service\Impl\CourseSeckillImpl.class
 com\scuplus\module\course\dto\CourseChooseRequest.class
 com\scuplus\module\share\service\impl\LikeServiceImpl.class
@@ -6,6 +7,7 @@ com\scuplus\common\config\S3Config.class
 com\scuplus\module\course\dto\CourseChooseVO.class
 com\scuplus\module\share\service\impl\PostServiceImpl.class
 com\scuplus\module\course\dto\CourseVO.class
+com\scuplus\module\notify\sse\SseEmitterRegistry.class
 com\scuplus\module\user\mapper\UserCredentialMapper.class
 com\scuplus\common\config\MybatisPlusConfig.class
 com\scuplus\infrastructure\job\CourseReconcileJob.class
@@ -14,7 +16,9 @@ com\scuplus\module\oss\dto\MultipartInitDTO.class
 com\scuplus\module\auth\service\AuthService.class
 com\scuplus\common\aspect\RateLimitAspect.class
 com\scuplus\module\course\dto\CourseDeleteVO.class
+com\scuplus\module\notify\dto\AnnouncementCreateRequest.class
 com\scuplus\module\course\entiy\Course.class
+com\scuplus\module\notify\entity\Notification.class
 com\scuplus\module\oss\dto\AbortRequest.class
 com\scuplus\module\oss\dto\PartPresignDTO.class
 com\scuplus\ScuplusApplication.class
@@ -45,13 +49,17 @@ com\scuplus\module\user\mapper\UserMapper.class
 com\scuplus\common\security\SessionAuthFilter.class
 com\scuplus\infrastructure\job\FileCleanUpJob.class
 com\scuplus\module\share\service\impl\CommentServiceImpl.class
+com\scuplus\module\notify\mapper\AnnouncementMapper.class
 com\scuplus\module\user\entity\User.class
 com\scuplus\module\course\service\CourseView.class
 com\scuplus\module\course\controller\CourseViewController.class
+com\scuplus\module\notify\service\NotificationService.class
 com\scuplus\module\oss\dto\CompleteMultipartRequest.class
+com\scuplus\module\notify\controller\AnnouncementController.class
 com\scuplus\module\auth\service\impl\AuthServiceImpl.class
 com\scuplus\module\share\mapper\PostDocumentMapper.class
 com\scuplus\common\security\TestUserBypassFilter.class
+com\scuplus\module\notify\controller\NotificationController.class
 com\scuplus\module\auth\dto\LoginRequest.class
 com\scuplus\module\share\dto\PostVO.class
 com\scuplus\module\oss\controller\OssController.class
@@ -63,7 +71,10 @@ com\scuplus\module\share\service\CommentService.class
 com\scuplus\common\config\CorsConfig.class
 com\scuplus\common\exception\ErrorCode.class
 com\scuplus\infrastructure\job\ShareJob.class
+com\scuplus\module\notify\mapper\NotificationMapper.class
+com\scuplus\module\notify\service\impl\NotificationServiceImpl.class
 com\scuplus\common\result\Result.class
+com\scuplus\module\notify\config\NotifySseJob.class
 com\scuplus\module\oss\dto\PartDTO.class
 com\scuplus\module\oss\dto\PresignDTO.class
 com\scuplus\module\oss\dto\PresignPartsRequest.class

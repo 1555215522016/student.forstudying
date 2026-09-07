@@ -13,6 +13,7 @@ import com.scuplus.module.share.entity.Post;
 import com.scuplus.module.share.mapper.CommentMapper;
 import com.scuplus.module.share.mapper.PostMapper;
 import com.scuplus.module.share.service.CommentService;
+import com.scuplus.module.notify.service.NotificationService;
 import com.scuplus.module.user.entity.User;
 import com.scuplus.module.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class CommentServiceImpl implements CommentService {
     private final CommentMapper commentMapper;
     private final PostMapper postMapper;
     private final UserMapper userMapper;
+    private final NotificationService notificationService;
 
     @Override
     public Long create(Long postId, Long userId, CommentCreateRequest req) {
@@ -57,6 +59,9 @@ public class CommentServiceImpl implements CommentService {
         comment.setStatus(0);
         comment.setIsAnonymous(Boolean.TRUE.equals(req.getIsAnonymous()) ? 1 : 0);
         commentMapper.insert(comment);
+
+        // 2.5 通知贴主（自己评自己已由服务内部跳过；MySQL 兜底 + SSE 实时推，不丢）
+        notificationService.notifyPostComment(postId, userId, comment.getContent());
 
         // 3. 评论数 +1（SQL 原子自增，天然防并发丢失）
         postMapper.update(null, new LambdaUpdateWrapper<Post>()

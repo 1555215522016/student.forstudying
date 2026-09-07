@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS t_comment (
     post_id     BIGINT       NOT NULL COMMENT '所属内容ID',
     user_id     BIGINT       NOT NULL COMMENT '评论者用户ID',
     content     VARCHAR(500) NOT NULL COMMENT '评论内容',
+    is_anonymous TINYINT     NOT NULL DEFAULT 0 COMMENT '是否匿名：0否 1是',
     status      TINYINT      NOT NULL DEFAULT 0 COMMENT '状态：0正常 1已删除',
     created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     PRIMARY KEY (id),

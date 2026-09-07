@@ -38,6 +38,17 @@ D:\scuplus-java\src\main\java\com\scuplus\module\course\service\CourseSeckill.ja
 D:\scuplus-java\src\main\java\com\scuplus\module\course\service\CourseView.java
 D:\scuplus-java\src\main\java\com\scuplus\module\course\service\Impl\CourseSeckillImpl.java
 D:\scuplus-java\src\main\java\com\scuplus\module\course\service\Impl\CourseViewImpl.java
+D:\scuplus-java\src\main\java\com\scuplus\module\notify\config\NotifySseJob.java
+D:\scuplus-java\src\main\java\com\scuplus\module\notify\controller\AnnouncementController.java
+D:\scuplus-java\src\main\java\com\scuplus\module\notify\controller\NotificationController.java
+D:\scuplus-java\src\main\java\com\scuplus\module\notify\dto\AnnouncementCreateRequest.java
+D:\scuplus-java\src\main\java\com\scuplus\module\notify\entity\Announcement.java
+D:\scuplus-java\src\main\java\com\scuplus\module\notify\entity\Notification.java
+D:\scuplus-java\src\main\java\com\scuplus\module\notify\mapper\AnnouncementMapper.java
+D:\scuplus-java\src\main\java\com\scuplus\module\notify\mapper\NotificationMapper.java
+D:\scuplus-java\src\main\java\com\scuplus\module\notify\service\impl\NotificationServiceImpl.java
+D:\scuplus-java\src\main\java\com\scuplus\module\notify\service\NotificationService.java
+D:\scuplus-java\src\main\java\com\scuplus\module\notify\sse\SseEmitterRegistry.java
 D:\scuplus-java\src\main\java\com\scuplus\module\oss\controller\OssController.java
 D:\scuplus-java\src\main\java\com\scuplus\module\oss\dto\AbortRequest.java
 D:\scuplus-java\src\main\java\com\scuplus\module\oss\dto\CompleteMultipartRequest.java

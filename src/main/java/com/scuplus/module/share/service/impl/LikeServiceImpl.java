@@ -7,6 +7,7 @@ import com.scuplus.module.share.entity.Like;
 import com.scuplus.module.share.entity.Post;
 import com.scuplus.module.share.mapper.LikeMapper;
 import com.scuplus.module.share.mapper.PostMapper;
+import com.scuplus.module.notify.service.NotificationService;
 import com.scuplus.module.share.service.LikeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
@@ -30,6 +31,7 @@ public class LikeServiceImpl implements LikeService {
     private final LikeMapper likeMapper;
     private final PostMapper postMapper;
     private final StringRedisTemplate redis;
+    private final NotificationService notificationService;
 
     /** Redis：某篇内容的点赞用户集合 */
     private static final String KEY_LIKES = "post:%d:likes";
@@ -73,9 +75,13 @@ public class LikeServiceImpl implements LikeService {
                 .eq(Like::getPostId, postId)
                 .eq(Like::getUserId, userId));
 
+        // 标记本次操作是否产生了"赞的生效"，决定要不要提醒贴主
+        boolean likedEffective = false;
+
         try {
             if (existing == null) {
-                // 场景1：从未操作过 → 新增一条目标类型记录
+                // 场景1：从未操作过 → 新增一条目标类型记录（若是"赞"，则点赞生效）
+                likedEffective = (targetType == TYPE_LIKE);
                 Like like = new Like();
                 like.setPostId(postId);
                 like.setUserId(userId);
@@ -89,7 +95,8 @@ public class LikeServiceImpl implements LikeService {
                 likeMapper.deleteById(existing.getId());
                 redis.opsForSet().remove(formatKey(targetKey, postId), userId.toString());
             } else {
-                // 场景3：点过相反类型 → 切换 type（UPDATE）
+                // 场景3：点过相反类型 → 切换 type（UPDATE；切到"赞"则点赞生效）
+                likedEffective = (targetType == TYPE_LIKE);
                 existing.setType(targetType);
                 likeMapper.updateById(existing);
                 // Redis：从相反集合移除，加入目标集合
@@ -101,6 +108,11 @@ public class LikeServiceImpl implements LikeService {
             return targetType == TYPE_LIKE
                     ? redis.opsForSet().size(KEY_LIKES).intValue()
                     : redis.opsForSet().size(KEY_DISLIKES).intValue();
+        }
+
+        // 点赞生效才提醒贴主（首次点赞、从踩切到赞）；取消赞/点踩不打扰
+        if (likedEffective) {
+            notificationService.notifyPostLike(postId, userId);
         }
 
         // 返回该类型集合的最新大小（点赞数/点踩数）

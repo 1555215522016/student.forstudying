@@ -1,0 +1,14 @@
+:ping
+
+:ping
+
+id:4
+event:notification
+data:{"id":4,"userId":1,"type":3,"sourceId":1,"content":"2022002 评论了你的帖子：hot push payload check","isRead":0,"createdAt":"2026-09-07T18:28:16.9934489"}
+
+id:5
+event:notification
+data:{"id":5,"userId":1,"type":1,"sourceId":1,"content":"【公告】notice title","isRead":0,"createdAt":"2026-09-07T18:28:17.1272487"}
+
+:ping
+

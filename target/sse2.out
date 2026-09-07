@@ -1,0 +1,18 @@
+:ping
+
+:ping
+
+id:2
+event:notification
+data:{"id":2,"userId":1,"type":3,"sourceId":1,"content":"2022002 评论了你的帖子：test comment","isRead":null,"createdAt":null}
+
+id:3
+event:notification
+data:{"id":3,"userId":1,"type":2,"sourceId":1,"content":"2022002 赞了你的帖子","isRead":null,"createdAt":null}
+
+:ping
+
+:ping
+
+:ping
+
