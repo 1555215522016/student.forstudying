@@ -14,11 +14,16 @@ import com.scuplus.module.course.service.CourseSeckill;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.QueryTimeoutException;
+import org.springframework.jdbc.CannotGetJdbcConnectionException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -26,9 +31,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
+/**
+ * 抢课主服务：三档状态机
+ *
+ *   PHASE1 redis   —— Lua 原子判赢，赢家异步落库 MySQL，请求路径只剩 Redis（扛万人并发）
+ *   PHASE2 closing —— 切换前的"收口"：关闭 Redis 判赢闸口，一次性清算账目（补齐缺行、清掉多余行）
+ *   PHASE3 mysql   —— 纯 MySQL 权威：行锁判量 + 时间冲突判量后写入，Redis 不再参与
+ *
+ * 超卖根治：模式1"赢得即赢，绝不回补名额"（Lua 原子扣减锁定判赢数 ≤ 容量，异步/对账保证一人一行）；
+ * 模式3 由 MySQL 事务内 COUNT 判量保证 ≤ 容量。整个设计里已经没有"还名额"这条路径。
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -36,6 +53,9 @@ public class CourseSeckillImpl implements CourseSeckill {
     private final CourseMapper courseMapper;
     private final CourseSelectionMapper selectionMapper;
     private final StringRedisTemplate redisTemplate;
+    @Qualifier("coursePersistExecutor")
+    private final Executor coursePersistExecutor;
+    private final TransactionTemplate transactionTemplate;
     private static final ConcurrentHashMap<Long, ReentrantLock> COURSE_LOCKS=new ConcurrentHashMap<>();
     private static final String PREFIX_STOCK = "stock";              // 缓存1：剩余名额
     private static final String PREFIX_USER_SLOTS = "user_slots";    // 缓存2：用户已占时间槽集合
@@ -45,6 +65,13 @@ public class CourseSeckillImpl implements CourseSeckill {
     private static final String PREFIX_COURSE_STUDENTS = "course_students"; // 缓存4：课程已选学生集合
     private static final String PREFIX_CAP = "cap";                  // 缓存5：课程原始容量（退课/对账用）
     private static final Set<Long> Valid_CourseIds=new ConcurrentHashSet<>();
+
+    /** 抢课模式。收口档是关键：Redis主 → 关闸清算 → MySQL主 */
+    public static final String MODE_REDIS = "redis";
+    public static final String MODE_CLOSING = "closing";
+    public static final String MODE_MYSQL = "mysql";
+    private static final String KEY_MODE = "seckill:mode";
+    private static final String KEY_MODE_SINCE = "seckill:mode_since";
 
     static final RedisScript<Long> Course_Choose_Script;
     static final RedisScript<Long> Course_Cancel_Script;
@@ -111,7 +138,10 @@ public class CourseSeckillImpl implements CourseSeckill {
                     c.getClassTime() != null ? c.getClassTime() : NO_SLOT);
             ensureCourseStudents(c.getId());
         }
-        log.info("抢课缓存初始化完成：{} 门课程已灌入 Redis", courses.size());
+        // 模式默认 Redis 主；已存在（清库前的旧事件）则不覆盖
+        redisTemplate.opsForValue().setIfAbsent(KEY_MODE, MODE_REDIS);
+        redisTemplate.opsForValue().setIfAbsent(KEY_MODE_SINCE, String.valueOf(System.currentTimeMillis()));
+        log.info("抢课缓存初始化完成：{} 门课程已灌入 Redis，当前模式 {}", courses.size(), currentMode());
     }
 
     /** course_students 集合缺失时创建空集合：Lua 第一行 EXISTS(KEYS[4]) 依赖它存在，
@@ -124,11 +154,30 @@ public class CourseSeckillImpl implements CourseSeckill {
         }
     }
 
+    /** 当前抢课模式 */
+    public String currentMode() {
+        String mode = redisTemplate.opsForValue().get(KEY_MODE);
+        return mode == null ? MODE_REDIS : mode;
+    }
+
     @Override
     public CourseChooseVO choose(Long userId, Long courseId) {
         if (!Valid_CourseIds.contains(courseId)) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "课程不存在");
         }
+        String mode = currentMode();
+        if (MODE_CLOSING.equals(mode)) {
+            // 收口：暂停 Redis 判赢，切换前做最后一次清算；请用户稍后重试走 MySQL 主
+            return closingVo();
+        }
+        if (MODE_MYSQL.equals(mode)) {
+            return chooseMySqlAuthoritative(userId, courseId);
+        }
+        return chooseRedisAuthoritative(userId, courseId);
+    }
+
+    /** PHASE1(Redis主)：Lua 原子判赢 → 异步落库，赢得即赢，绝不回补名额 */
+    private CourseChooseVO chooseRedisAuthoritative(Long userId, Long courseId) {
         String stock = PREFIX_STOCK + ":{" + courseId + "}";
         String userSlots = PREFIX_USER_SLOTS + ":{" + userId + "}";
         String courseSlot = PREFIX_COURSE_SLOT + ":{" + courseId + "}";
@@ -165,41 +214,94 @@ public class CourseSeckillImpl implements CourseSeckill {
             throw new BusinessException(ErrorCode.CONFLICT, "抢课失败，课程已满");
         }
 
-        // Redis 已原子"宣布胜利"。MySQL 落库是提交点：成功才返回"选课成功"；失败做原子补偿，绝不卡死在"已选"
-        CourseSelection courseSelection = toEntiy(courseId, userId, 1, new CourseSelection());
-        long dbStart = System.currentTimeMillis();
+        // Redis 已原子"宣布胜利"。异步落库：输赢由 Redis 定，MySQL 只负责记，失败交给对账补齐
+        asyncPersist(courseId, userId);
+        return successVo();
+    }
+
+    /** 异步落库：MySQL 慢写移出请求线程；拒绝/失败都交给对账补齐，绝不阻塞请求、绝不回补名额 */
+    private void asyncPersist(Long courseId, Long userId) {
         try {
-            // 尽量幂等：唯一索引 uk_user_course 兜底并发/超时重试
-            selectionMapper.insert(courseSelection);
+            coursePersistExecutor.execute(() -> {
+                CourseSelection sel = toEntiy(courseId, userId, 1, new CourseSelection());
+                try {
+                    selectionMapper.insert(sel);
+                } catch (DuplicateKeyException e) {
+                    // 幂等：行已存在（并发重试 / 对账已补）
+                } catch (Exception e) {
+                    log.error("异步落库失败，交给对账补齐：userId={}, courseId={}, err={}", userId, courseId, e.getMessage());
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            // 队列满：直接放弃，Redis 判的赢家由对账补齐
+            log.warn("异步落库队列已满，交给对账补齐：userId={}, courseId={}", userId, courseId);
+        }
+    }
+
+    /** PHASE3(MySQL主)：纯 MySQL 事务。行锁串行化 → 已选人数判量 → 时间冲突判量 → 写入。Redis 不参与。 */
+    private CourseChooseVO chooseMySqlAuthoritative(Long userId, Long courseId) {
+        try {
+            transactionTemplate.execute(tx -> {
+                Course course = courseMapper.selectByIdForUpdate(courseId);
+                if (course == null) {
+                    throw new BusinessException(ErrorCode.BAD_REQUEST, "课程不存在");
+                }
+                // ① 先看自己是否已选：已选＝幂等成功，不占新名额。
+                //    必须放在容量/冲突判断之前——否则冲突查询会把自己刚选的这堂课也数进去，误报"时间冲突"
+                CourseSelection existing = selectionMapper.selectOne(Wrappers.<CourseSelection>lambdaQuery()
+                        .eq(CourseSelection::getUserId, userId)
+                        .eq(CourseSelection::getCourseId, courseId));
+                if (existing != null && existing.getStatus() == 1) {
+                    return 1;
+                }
+                // ② 判量：已选人数 < 容量（行锁保证并发的两次不会都通过）
+                Long selected = selectionMapper.selectCount(Wrappers.<CourseSelection>lambdaQuery()
+                        .eq(CourseSelection::getCourseId, courseId)
+                        .eq(CourseSelection::getStatus, 1));
+                if ((selected == null ? 0 : selected) >= course.getCapacity()) {
+                    throw new CourseFullException();
+                }
+                // ③ 判时间冲突：已有已选课程里没有撞上课时间的（自己的 status=1 已在上一步排除）
+                if (course.getClassTime() != null) {
+                    if (selectionMapper.selectConflictedCount(userId, course.getClassTime()) > 0) {
+                        throw new BusinessException(ErrorCode.CONFLICT, "选课时间与已选时间冲突，请重新选课");
+                    }
+                }
+                // ④ 写入：已退/失败→重选改回已选；新用户→插入
+                if (existing != null) {
+                    selectionMapper.update(null, Wrappers.<CourseSelection>lambdaUpdate()
+                            .eq(CourseSelection::getId, existing.getId())
+                            .set(CourseSelection::getStatus, 1));
+                    return 1;
+                }
+                selectionMapper.insert(toEntiy(courseId, userId, 1, new CourseSelection()));
+                return 1;
+            });
+        } catch (BusinessException e) {
+            throw e; // 明确的业务结论（课程不存在/时间冲突）直接透传
+        } catch (CourseFullException e) {
+            throw new BusinessException(ErrorCode.CONFLICT, "抢课失败，课程已满");
         } catch (DuplicateKeyException e) {
-            // 幂等：并发/重试撞唯一索引 → 用户已在名额里，按成功处理，不是错误
-            log.warn("用户 {} 选课 {} 已存在（唯一索引兜底），按成功处理", userId, courseId);
+            // 并发下撞唯一键：另一个请求已插好，用户确持名额
+            log.warn("PHASE3 并发重选唯一键兜底，按成功处理：userId={}, courseId={}", userId, courseId);
+            return successVo();
         } catch (Exception e) {
-            // 提交点失败 → 复用退课脚本做原子补偿：撤销 Redis 扣减与"已选"标记，让用户可重试而不是卡死
-            log.warn("选课落库失败，开始原子补偿：userId={}, courseId={}, err={}", userId, courseId, e.getMessage());
-
-
-
-            compensate(userId, courseId);
+            if (isAmbiguous(e)) {
+                // 超时/断连：结果未知。MySQL 是权威，把它交给查询/对账去收敛，绝不在客户端翻案
+                log.warn("PHASE3 落库结果未知，返回处理中：userId={}, courseId={}, err={}", userId, courseId, e.getMessage());
+                return processingVo();
+            }
+            log.error("PHASE3 抢课异常：userId={}, courseId={}", userId, courseId, e);
             throw new BusinessException(ErrorCode.SERVER_ERROR, "抢课失败，请稍后重试");
         }
-        long dbCost = System.currentTimeMillis() - dbStart;
-
-        // 只有超过阈值才告警，否则静默（热路径不刷屏）
-        if (dbCost > 100) {
-            log.warn("MySQL落库耗时过长：{}ms, userId={}, courseId={}", dbCost, userId, courseId);
-        } else {
-            log.debug("MySQL落库耗时：{}ms", dbCost); // 默认不输出，调试时打开
-        }
-        CourseChooseVO vo = new CourseChooseVO();
-        vo.setId(courseSelection.getId());
-        vo.setStatus(1);
-        vo.setMessage("选课成功");
-        return vo;
+        return successVo();
     }
 
     @Override
     public CourseDeleteVO delete(Long userId, Long courseId) {
+        if (MODE_MYSQL.equals(currentMode())) {
+            return deleteMySqlAuthoritative(userId, courseId);
+        }
         String stock = PREFIX_STOCK + ":{" + courseId + "}";
         String userSlots = PREFIX_USER_SLOTS + ":{" + userId + "}";
         String courseSlot = PREFIX_COURSE_SLOT + ":{" + courseId + "}";
@@ -250,14 +352,132 @@ public class CourseSeckillImpl implements CourseSeckill {
         return vo;
     }
 
-    /** 对账兜底：以 MySQL 为准，收敛 Redis 与 DB 的选课状态差异。每 5 分钟由 CourseReconcileJob 调用。
-     *  两条规则（先方向1后方向2）：
-     *   方向1 — Redis 有"已选"标记、MySQL 无 status=1 行（落库失败+补偿也失败残留）：
-     *           用户看到的"失败"是最终结果，绝不翻案 → 只清 Redis 标记 + 还名额 + 释放时间槽
-     *   方向2 — MySQL 有 status=1 行、Redis 无标记（Redis 被清/重启漏建）：
-     *           补 Redis 标记 + 用"容量-已选数"重算库存（不靠 INCR 累加，防漂移）
-     */
+    /** PHASE3 退课：纯 MySQL，已选翻成已退。判量用 COUNT(status=1)，退课即自然释放名额，无需 Redis */
+    private CourseDeleteVO deleteMySqlAuthoritative(Long userId, Long courseId) {
+        int updated = selectionMapper.update(null, Wrappers.<CourseSelection>lambdaUpdate()
+                .eq(CourseSelection::getUserId, userId)
+                .eq(CourseSelection::getCourseId, courseId)
+                .eq(CourseSelection::getStatus, 1)
+                .set(CourseSelection::getStatus, 2));
+        CourseDeleteVO vo = new CourseDeleteVO();
+        vo.setStatus("2");
+        vo.setMessage(updated == 1 ? "退课成功" : "未选该课程或已退课");
+        return vo;
+    }
+
+    /** 对账入口：按当前模式分叉。收口档的清算由 CourseModeJob 单独驱动。 */
     public void reconcile() {
+        String mode = currentMode();
+        if (MODE_REDIS.equals(mode)) {
+            reconcileRedisFirst();
+        } else if (MODE_MYSQL.equals(mode)) {
+            reconcileMySqlFirst();
+        }
+        // closing 期间：Redis 判赢已冻结，交给 CourseModeJob.reconcileClosing 做最后清算
+    }
+
+    /** 对账(PHASE1, Redis主)：只补不删。Redis 判赢但 MySQL 缺行 → 补一行（异步落库的兜底网） */
+    private void reconcileRedisFirst() {
+        int added = 0;
+        for (String key : redisTemplate.keys(PREFIX_COURSE_STUDENTS + ":*")) {
+            Long courseId = courseIdOf(key);
+            for (String uid : redisTemplate.opsForSet().members(key)) {
+                if ("init".equals(uid)) {
+                    continue; // 集合初始化占位跳过
+                }
+                Long userId = Long.valueOf(uid);
+                boolean inDb = selectionMapper.selectCount(Wrappers.<CourseSelection>lambdaQuery()
+                        .eq(CourseSelection::getUserId, userId)
+                        .eq(CourseSelection::getCourseId, courseId)
+                        .eq(CourseSelection::getStatus, 1)) > 0;
+                if (!inDb) {
+                    try {
+                        selectionMapper.insert(toEntiy(courseId, userId, 1, new CourseSelection()));
+                        added++;
+                    } catch (DuplicateKeyException e) {
+                        // 与异步落库并发，行已存在即可
+                    }
+                }
+            }
+        }
+        if (added > 0) {
+            log.info("对账(PHASE1-Redis主)：补齐 MySQL 选课行 {} 行", added);
+        }
+    }
+
+    /** 收口清算(closing)：Redis 判赢集合已冻结，此时做最后一次拉平——补齐缺行、清掉多余行 */
+    public void reconcileClosing() {
+        int added = 0, cleared = 0;
+        // 补：Redis 判赢、MySQL 缺行 → 补齐
+        for (String key : redisTemplate.keys(PREFIX_COURSE_STUDENTS + ":*")) {
+            Long courseId = courseIdOf(key);
+            for (String uid : redisTemplate.opsForSet().members(key)) {
+                if ("init".equals(uid)) {
+                    continue;
+                }
+                Long userId = Long.valueOf(uid);
+                boolean inDb = selectionMapper.selectCount(Wrappers.<CourseSelection>lambdaQuery()
+                        .eq(CourseSelection::getUserId, userId)
+                        .eq(CourseSelection::getCourseId, courseId)
+                        .eq(CourseSelection::getStatus, 1)) > 0;
+                if (!inDb) {
+                    try {
+                        selectionMapper.insert(toEntiy(courseId, userId, 1, new CourseSelection()));
+                        added++;
+                    } catch (DuplicateKeyException e) {
+                    }
+                }
+            }
+        }
+        // 清：MySQL 有 status=1 行但 Redis 无对应标记 → 判定"非判赢"，翻成选课失败(3)
+        //     （Redis主模式下 MySQL 只是镜像，镜像里多出来的行不算数）
+        for (CourseSelection sel : selectionMapper.selectList(Wrappers.<CourseSelection>lambdaQuery()
+                .eq(CourseSelection::getStatus, 1))) {
+            String key = PREFIX_COURSE_STUDENTS + ":{" + sel.getCourseId() + "}";
+            if (Boolean.FALSE.equals(redisTemplate.opsForSet().isMember(key, String.valueOf(sel.getUserId())))) {
+                selectionMapper.update(null, Wrappers.<CourseSelection>lambdaUpdate()
+                        .eq(CourseSelection::getId, sel.getId())
+                        .eq(CourseSelection::getStatus, 1)
+                        .set(CourseSelection::getStatus, 3));
+                cleared++;
+            }
+        }
+        if (added > 0 || cleared > 0) {
+            log.info("收口清算：补齐 {} 行，判定失败 {} 行", added, cleared);
+        }
+    }
+
+    /** 切换前账目校验：每门课 |Redis course_students| == |MySQL status=1 行数| */
+    public boolean isBooksMatched() {
+        for (Course c : courseMapper.selectList(Wrappers.<Course>lambdaQuery().eq(Course::getStatus, 1))) {
+            Long dbCount = selectionMapper.selectCount(Wrappers.<CourseSelection>lambdaQuery()
+                    .eq(CourseSelection::getCourseId, c.getId())
+                    .eq(CourseSelection::getStatus, 1));
+            long redis = redisSizeOf(c.getId());
+            if (redis != (dbCount == null ? 0 : dbCount)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** 进入收口：关闭 Redis 判赢闸口（之后的 choose 请求返回"稍后"），冻结赢家集合准备清算 */
+    public void beginClosing() {
+        redisTemplate.opsForValue().set(KEY_MODE, MODE_CLOSING);
+        log.info("抢课进入收口：暂停 Redis 判赢，开始切换前清算");
+    }
+
+    /** 切换完成：MySQL 主。此后 choose 走纯 MySQL 事务，Redis 仅展示 */
+    public void flipToMySql() {
+        redisTemplate.opsForValue().set(KEY_MODE, MODE_MYSQL);
+        log.info("抢课切换完成：MySQL 主");
+    }
+
+    /** 对账(PHASE3, MySQL主)：以 MySQL 为准收敛 Redis 展示口径。
+     *  方向1 — Redis 有"已选"标记、MySQL 无 status=1 行：清 Redis 标记 + 还名额（MySQL 判未选）
+     *  方向2 — MySQL 有 status=1 行、Redis 无标记：补 Redis 标记 + 用"容量-已选数"重算库存
+     */
+    private void reconcileMySqlFirst() {
         // ---- 方向1：清理 Redis 幽灵标记 ----
         int ghostCleaned = 0;
         // 生产大集群用 SCAN 代替 KEYS（KEYS O(N) 会阻塞 Redis）；本 demo 200 门课可接受
@@ -266,6 +486,9 @@ public class CourseSeckillImpl implements CourseSeckill {
             Long courseId = courseIdOf(key);
             Set<String> users = redisTemplate.opsForSet().members(key);
             for (String userIdStr : users) {
+                if ("init".equals(userIdStr)) {
+                    continue;
+                }
                 Long userId = Long.valueOf(userIdStr);
                 boolean inDb = selectionMapper.selectCount(Wrappers.<CourseSelection>lambdaQuery()
                         .eq(CourseSelection::getUserId, userId)
@@ -275,15 +498,15 @@ public class CourseSeckillImpl implements CourseSeckill {
                     Long rb = runCancelScript(userId, courseId); // 复用退课脚本：清标记+还名额+放时间槽
                     if (rb != null && rb == 0) {
                         ghostCleaned++;
-                        log.warn("对账-方向1：MySQL 无已选记录，清理 Redis 幽灵标记 userId={}, courseId={}", userId, courseId);
+                        log.warn("对账-PHASE3-方向1：MySQL 无已选记录，清理 Redis 幽灵标记 userId={}, courseId={}", userId, courseId);
                     } else {
-                        log.error("对账-方向1清理失败（rb={}），留待下次对账：userId={}, courseId={}", rb, userId, courseId);
+                        log.error("对账-PHASE3-方向1清理失败（rb={}），留待下次对账：userId={}, courseId={}", rb, userId, courseId);
                     }
                 }
             }
         }
         if (ghostCleaned > 0) {
-            log.info("对账-方向1完成：清理幽灵标记 {} 个", ghostCleaned);
+            log.info("对账-PHASE3-方向1完成：清理幽灵标记 {} 个", ghostCleaned);
         }
 
         // ---- 方向2：给 MySQL 已选但 Redis 缺标记的补标记 + 重算库存 ----
@@ -297,7 +520,7 @@ public class CourseSeckillImpl implements CourseSeckill {
                 redisTemplate.opsForSet().add(setKey, String.valueOf(sel.getUserId()));
                 backfilled++;
                 needRecalc.add(sel.getCourseId());
-                log.warn("对账-方向2：MySQL 有已选但 Redis 无标记，补标记 userId={}, courseId={}",
+                log.warn("对账-PHASE3-方向2：MySQL 有已选但 Redis 无标记，补标记 userId={}, courseId={}",
                         sel.getUserId(), sel.getCourseId());
             }
         }
@@ -307,11 +530,56 @@ public class CourseSeckillImpl implements CourseSeckill {
                     .collect(Collectors.toMap(Course::getId, c -> c.getCapacity().intValue()));
             for (Long courseId : needRecalc) {
                 Long taken = redisTemplate.opsForSet().size(PREFIX_COURSE_STUDENTS + ":{" + courseId + "}");
-                int stock = capMap.getOrDefault(courseId, 0) - taken.intValue();
+                int stock = capMap.getOrDefault(courseId, 0) - (taken == null ? 0 : taken.intValue());
                 redisTemplate.opsForValue().set(PREFIX_STOCK + ":{" + courseId + "}", String.valueOf(Math.max(stock, 0)));
             }
-            log.info("对账-方向2完成：补 Redis 标记 {} 个，重算库存 {} 门", backfilled, needRecalc.size());
+            log.info("对账-PHASE3-方向2完成：补 Redis 标记 {} 个，重算库存 {} 门", backfilled, needRecalc.size());
         }
+    }
+
+    /** 歧义失败判定：超时/断连类异常，说明"服务端到底提交没有"未知，绝不能按"失败"去补偿/还名额 */
+    private boolean isAmbiguous(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof QueryTimeoutException
+                    || t instanceof CannotGetJdbcConnectionException
+                    || t instanceof DataAccessResourceFailureException
+                    || t.getClass().getName().contains("CommunicationsException")
+                    || t.getClass().getName().contains("MySQLNonTransientConnectionException")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private CourseChooseVO successVo() {
+        CourseChooseVO vo = new CourseChooseVO();
+        vo.setStatus(1);
+        vo.setMessage("选课成功");
+        return vo;
+    }
+
+    private CourseChooseVO processingVo() {
+        CourseChooseVO vo = new CourseChooseVO();
+        vo.setStatus(0);
+        vo.setMessage("选课结果确认中，请刷新重试");
+        return vo;
+    }
+
+    private CourseChooseVO closingVo() {
+        CourseChooseVO vo = new CourseChooseVO();
+        vo.setStatus(0);
+        vo.setMessage("选课正在切换阶段，请稍后重试");
+        return vo;
+    }
+
+    /** PHASE3 判量满员的哨兵异常（负责触发事务回滚） */
+    private static final class CourseFullException extends RuntimeException {
+    }
+
+    /** 该课程 Redis 已选集合的当前大小 */
+    private long redisSizeOf(Long courseId) {
+        Long size = redisTemplate.opsForSet().size(PREFIX_COURSE_STUDENTS + ":{" + courseId + "}");
+        return size == null ? 0 : size;
     }
 
     /** 原子补偿：落库失败时复用退课脚本，撤销 Redis 的"已选"标记与名额扣减，让用户可重试而不是卡死。
@@ -378,7 +646,7 @@ public class CourseSeckillImpl implements CourseSeckill {
                     .eq(CourseSelection::getStatus, 1));
             // 库存 = 容量 - 已选（count 重算，防超卖）；setIfAbsent 不覆盖已扣减库存
             redisTemplate.opsForValue().setIfAbsent(PREFIX_STOCK + ":{" + courseId + "}",
-                    String.valueOf(Math.max(c.getCapacity() - chosen, 0)));
+                    String.valueOf(Math.max(c.getCapacity() - (chosen == null ? 0 : chosen), 0)));
             redisTemplate.opsForValue().setIfAbsent(PREFIX_CAP + ":{" + courseId + "}", String.valueOf(c.getCapacity()));
             redisTemplate.opsForValue().setIfAbsent(PREFIX_COURSE_SLOT + ":{" + courseId + "}",
                     c.getClassTime() != null ? c.getClassTime() : NO_SLOT);

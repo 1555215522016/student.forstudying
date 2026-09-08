@@ -16,6 +16,7 @@ D:\scuplus-java\src\main\java\com\scuplus\common\security\LoginUser.java
 D:\scuplus-java\src\main\java\com\scuplus\common\security\SessionAuthFilter.java
 D:\scuplus-java\src\main\java\com\scuplus\common\security\TestUserBypassFilter.java
 D:\scuplus-java\src\main\java\com\scuplus\common\trace\TraceIdFilter.java
+D:\scuplus-java\src\main\java\com\scuplus\infrastructure\job\CourseModeJob.java
 D:\scuplus-java\src\main\java\com\scuplus\infrastructure\job\CourseReconcileJob.java
 D:\scuplus-java\src\main\java\com\scuplus\infrastructure\job\FileCleanUpJob.java
 D:\scuplus-java\src\main\java\com\scuplus\infrastructure\job\ShareJob.java
@@ -24,6 +25,7 @@ D:\scuplus-java\src\main\java\com\scuplus\module\auth\dto\LoginRequest.java
 D:\scuplus-java\src\main\java\com\scuplus\module\auth\dto\LoginResponse.java
 D:\scuplus-java\src\main\java\com\scuplus\module\auth\service\AuthService.java
 D:\scuplus-java\src\main\java\com\scuplus\module\auth\service\impl\AuthServiceImpl.java
+D:\scuplus-java\src\main\java\com\scuplus\module\course\config\CourseAsyncConfig.java
 D:\scuplus-java\src\main\java\com\scuplus\module\course\controller\CourseSeckillController.java
 D:\scuplus-java\src\main\java\com\scuplus\module\course\controller\CourseViewController.java
 D:\scuplus-java\src\main\java\com\scuplus\module\course\dto\CourseChooseRequest.java
