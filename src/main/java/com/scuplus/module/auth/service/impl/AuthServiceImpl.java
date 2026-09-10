@@ -25,6 +25,9 @@ public class AuthServiceImpl implements AuthService {
     /** Demo 阶段写死的测试账号（真实需对接学校统一认证） */
     private static final String TEST_STUDENT_ID = "2022001";
     private static final String TEST_PASSWORD = "abc123";
+    /** 管理员专用账号：专属密码放行（供公告发布等管理功能） */
+    private static final String ADMIN_STUDENT_ID = "25209100016";
+    private static final String ADMIN_PASSWORD = "yanggeng123456";
 
     private final UserMapper userMapper;
 
@@ -37,7 +40,7 @@ public class AuthServiceImpl implements AuthService {
         User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
                 .eq(User::getStudentId, studentId));
         if (user == null) {
-            user = createUser(studentId);
+            throw new BusinessException(ErrorCode.NOT_FOUND,"非法用户");
         }
 
         // 3. 组装登录快照（存 session 用）
@@ -63,6 +66,13 @@ public class AuthServiceImpl implements AuthService {
     private void mockSchoolAuth(String studentId, String password) {
         if (studentId == null || studentId.isBlank()) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "学号不能为空");
+        }
+        if (ADMIN_STUDENT_ID.equals(studentId)) {
+            // 管理员：走专属密码（普通账号的 abc123 对它无效）
+            if (!ADMIN_PASSWORD.equals(password)) {
+                throw new BusinessException(ErrorCode.UNAUTHORIZED, "学号或密码错误");
+            }
+            return;
         }
         if (!TEST_PASSWORD.equals(password)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "学号或密码错误");

@@ -112,6 +112,7 @@ public class CommentServiceImpl implements CommentService {
         CommentVO vo = new CommentVO();
         vo.setId(comment.getId());
         vo.setPostId(comment.getPostId());
+        vo.setUserId(comment.getUserId());
         vo.setContent(comment.getContent());
         vo.setCreatedAt(comment.getCreatedAt());
 

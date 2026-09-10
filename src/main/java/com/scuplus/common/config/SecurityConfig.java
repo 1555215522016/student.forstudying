@@ -39,7 +39,12 @@ public class SecurityConfig {
             "/swagger-ui.html",     // Swagger 文档
             "/swagger-ui/**",
             "/v3/api-docs/**",
-            "/error"
+            "/error",
+            "/",                    // 前端静态资源（登录页/样式/脚本）
+            "/index.html",
+            "/css/**",
+            "/js/**",
+            "/favicon.ico"
     };
 
     private final ObjectMapper objectMapper;

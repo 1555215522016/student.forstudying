@@ -2,6 +2,8 @@ package com.scuplus.module.oss.service;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
+import com.amazonaws.services.s3.model.BucketCrossOriginConfiguration;
+import com.amazonaws.services.s3.model.CORSRule;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
 import com.amazonaws.services.s3.model.ListPartsRequest;
@@ -32,6 +34,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -84,6 +87,25 @@ public class OssService {
                 minioClient.setBucketPolicy(
                         SetBucketPolicyArgs.builder().bucket(minioConfig.getBucket()).config(policy).build());
                 log.info("MinIO bucket '{}' 已设为公开读", minioConfig.getBucket());
+            }
+            // 浏览器直传：前端页面(:8080)向 MinIO(:9000)发 PUT 是跨域请求，浏览器会先发 CORS 预检。
+            // 本版本 MinIO 对 S3 的 PutBucketCors 常回 501（NotImplemented），但它对浏览器跨域是自动兼容的，
+            // 所以这里尽力配置 + 失败仅告警，不让一条 501 把整个 bucket 初始化标记成失败。
+            try {
+                List<CORSRule.AllowedMethods> methods = new ArrayList<>();
+                methods.add(CORSRule.AllowedMethods.PUT);
+                methods.add(CORSRule.AllowedMethods.GET);
+                CORSRule rule = new CORSRule()
+                        .withId("web-upload")
+                        .withAllowedOrigins(Collections.singletonList("*"))
+                        .withAllowedMethods(methods)
+                        .withAllowedHeaders(Collections.singletonList("*"))
+                        .withMaxAgeSeconds(3600);
+                s3Client.setBucketCrossOriginConfiguration(minioConfig.getBucket(),
+                        new BucketCrossOriginConfiguration(Collections.singletonList(rule)));
+                log.info("MinIO bucket '{}' CORS 已开放（浏览器直传）", minioConfig.getBucket());
+            } catch (Exception corsEx) {
+                log.warn("MinIO CORS 配置未生效（{}）；若浏览器直传被拦，手动执行 mc cors set 即可", corsEx.getMessage());
             }
         } catch (Exception e) {
             log.error("MinIO bucket 初始化失败，请确认 MinIO 已启动", e);

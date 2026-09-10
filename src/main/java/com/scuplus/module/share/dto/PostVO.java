@@ -14,6 +14,9 @@ public class PostVO {
 
     private Long id;
 
+    /** 楼主 userId（前端点昵称/头像进个人详情用） */
+    private Long userId;
+
     /** 昵称（isAnonymous=1 时返回"匿名用户"） */
     private String nickname;
 

@@ -11,6 +11,9 @@ public class CommentVO {
     /**帖子的id*/
     private Long postId;
 
+    /** 评论者 userId（前端点昵称/头像进个人详情用） */
+    private Long userId;
+
     /** 昵称（isAnonymous=1 时返回"匿名用户"） */
     private String nickname;
 

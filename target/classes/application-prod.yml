@@ -1,19 +1,68 @@
-# ===== 生产环境配置（部署用，值应通过环境变量覆盖，此处仅占位）=====
+# ============================================================
+# 生产环境配置（服务器上打包运行用）
+# 启动命令：  java -jar scuplus-java-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
+#
+# 为什么需要这个文件：
+#   datasource / redis / cache 目前只在 application-dev.yml 里，
+#   不加生产配置直接跑 prod 档会连不上数据库。这里把它们补齐，
+#   并做好生产该有的安全默认值。
+# ============================================================
 
 spring:
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:scuplus}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
-    username: ${DB_USERNAME:root}
+    # MySQL 与应用同机（Docker 端口映射到宿主机 127.0.0.1:3306）。
+    # 用 127.0.0.1 而非 localhost：Linux 上 localhost 可能解析成 ::1。
+    url: jdbc:mysql://127.0.0.1:3306/scuplus?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    # 【生产必改】跟 docker-compose.yml 里 MYSQL_ROOT_PASSWORD 保持一致。
+    # 演示可先用 root123456，正式上线务必改成强密码（两处都改）。
     password: ${DB_PASSWORD:root123456}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      # 生产并发不高，池子小一点更省资源；抢课高峰会临时多连，12 留余量
+      maximum-pool-size: 30
+      minimum-idle: 5
+      connection-timeout: 3000
+      max-lifetime: 1800000
 
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
+      host: 127.0.0.1
+      port: 6379
 
-mybatis-plus:
-  configuration:
-    # 生产环境关掉 SQL 日志，避免刷屏和泄露数据
-    log-impl:
+  cache:
+    type: redis
+
+  elasticsearch:
+    # 帖子搜索的 ES，与应用同机（Docker 映射 9200）
+    uris: http://127.0.0.1:9200
+
+# ===== 安全红线 =====
+scuplus:
+  test:
+    # 生产必须 false：dev 才开 X-Test-UserId 压测旁路。
+    # 若为 true，任何请求带个 X-Test-UserId 头就能冒充任意用户 → 灾难。
+    user-bypass: false
+  jwt:
+    # 代码里 JWT 暂未实际使用（占位），但生产也别留默认弱密钥
+    secret: ${JWT_SECRET:change-me-to-a-long-random-string-0123456789abcdef}
+    expire-seconds: 604800
+    header: Authorization
+
+# ===== MinIO（图片/视频对象存储）=====
+minio:
+  # 关键：预签名 URL 是用"endpoint 的 host"签名的，浏览器 PUT 时也必须用同一个 host，否则 MinIO 因 SignV4 里 host 不匹配而拒签(403)。
+  # 所以生产这里必须填"浏览器能访问到的公网地址"，让预签名 URL 直接就是公网 host，前端无需再改写 host。
+  # 后端生成签名不联网；（副作用：后端连 MinIO 也走公网回环，云服务器一般可行；若视频分片(AmazonS3)也不稳，再单独为它保留回环）
+  endpoint: ${MINIO_ENDPOINT:http://62.234.61.23:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  bucket: scuplus
+  # 生产如果对上线的公网：bucket 公开读 = 任何人都能读已上传的图片（帖子图本来就要被看）。
+  # 介意隐私就改 false，但前端直接访问图片 URL 会 403。
+  public-read: true
+
+# 减小生产日志噪音（ES/Redis 连接等不发 DEBUG）
+logging:
+  level:
+    root: info

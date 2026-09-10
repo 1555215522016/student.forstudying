@@ -18,10 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -49,17 +46,36 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public PageResult<PostVO> list(int page, int size) {
+    public PageResult<PostVO> list(int page, int size, String sort) {
         if (page < 0 || size < 0) {
             throw new BusinessException(ErrorCode.PARAM_INVALID);
         }
+        LambdaQueryWrapper<Post> wrapper = new LambdaQueryWrapper<Post>()
+                .eq(Post::getStatus, 0);
+        switch (sort == null ? "latest" : sort) {
+            case "oldest" -> wrapper.orderByAsc(Post::getCreatedAt);          // 最早（按发帖时间正序）
+            case "likes" -> wrapper.orderByDesc(Post::getLikeCount);          // 点赞最多（like_count 由任务每30s从Redis同步，允许小延迟）
+            default -> wrapper.orderByDesc(Post::getCreatedAt);               // 最新（默认）
+        }
         Page<Post> postPage = postMapper.selectPage(
                 new Page<>(page, size),
-                new LambdaQueryWrapper<Post>()
-                        .eq(Post::getStatus, 0)
-                        .orderByDesc(Post::getCreatedAt)
+                wrapper
         );
         List<PostVO> list = converToListVo(postPage.getRecords(), false);
+// 第一步：获取 List
+// 第二步：遍历修改每个元素（因为你要改的是原对象，用 forEach）
+        list.forEach(postVO -> {
+            postVO.setLikeCount(
+                    Optional.ofNullable(redisTemplate.opsForSet().size("post:" + postVO.getId() + ":likes"))
+                            .map(Long::intValue)
+                            .orElse(0)
+            );
+            postVO.setDislikeCount(
+                    Optional.ofNullable(redisTemplate.opsForSet().size("post:" + postVO.getId() + ":dislikes"))
+                            .map(Long::intValue)
+                            .orElse(0)
+            );
+        });
         return PageResult.of(list, postPage.getTotal());
     }
 
@@ -94,6 +110,7 @@ public class PostServiceImpl implements PostService {
     public PostVO convertToVO(Post post, Boolean withUser, Map<Long, User> usermap) {
         PostVO vo = new PostVO();
         vo.setId(post.getId());
+        vo.setUserId(post.getUserId());
         vo.setContent(post.getContent());
         vo.setLikeCount(post.getLikeCount());
         vo.setDislikeCount(post.getDislikeCount());

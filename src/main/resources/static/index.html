@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>西安电子科技大学 · 校园服务</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<!-- ============ 登录页 ============ -->
+<div class="login-wrap" id="view-login">
+  <div class="login-card">
+    <div class="seal-lg">西电</div>
+    <h1>西安电子科技大学</h1>
+    <p class="motto-lg">厚德 · 求真 · 砺学 · 笃行</p>
+    <form id="login-form">
+      <input id="input-sid" placeholder="学号" autocomplete="username" required>
+      <input id="input-pwd" type="password" placeholder="密码" autocomplete="current-password" required>
+      <button class="btn btn-primary btn-block" type="submit">登 录</button>
+    </form>
+    <p id="login-err" class="login-err"></p>
+  </div>
+</div>
+
+<!-- ============ 顶部导航（登录后显示） ============ -->
+<header class="topbar" id="topbar" hidden>
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="seal">西电</span>
+      <div class="brand-text">
+        <span class="brand-name">西安电子科技大学 · 校园服务</span>
+        <span class="brand-motto">厚德 · 求真 · 砺学 · 笃行</span>
+      </div>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-view="share">生活分享</button>
+      <button class="tab" data-view="course">抢课中心</button>
+      <button class="tab" data-view="grade">成绩查询</button>
+      <button class="tab" data-view="feedback">教师评价</button>
+    </nav>
+    <div class="userbox">
+      <img class="avatar avatar-nav" id="nav-avatar" alt="头像" onclick="openProfile(state.user.userId)" hidden>
+      <a class="uname" href="javascript:void(0)" onclick="openProfile(state.user.userId)" id="user-name"></a>
+      <span class="badge" id="user-badge" hidden>管理员</span>
+      <button class="btn btn-ghost-light" id="btn-logout">退出</button>
+    </div>
+  </div>
+</header>
+
+<!-- ============ 应用视图 ============ -->
+<div id="app-shell" hidden>
+
+  <!-- 生活分享 -->
+  <section class="view active" id="view-share">
+    <div class="container">
+      <div class="card compose">
+        <textarea id="post-content" rows="3" placeholder="分享你的校园生活…"></textarea>
+        <div class="compose-actions">
+          <div class="compose-left">
+            <button type="button" class="btn btn-ghost" id="btn-pick-img">📷 添加图片</button>
+            <input type="file" id="post-images" accept="image/*" multiple hidden>
+            <label class="chk"><input type="checkbox" id="post-anon"> 匿名发布</label>
+          </div>
+          <button class="btn btn-primary" id="btn-post">发布</button>
+        </div>
+        <div id="post-imgs" class="imgs"></div>
+      </div>
+      <form class="searchbar" id="search-form">
+        <input id="search-kw" placeholder="搜索帖子内容…">
+        <button class="btn btn-ghost" type="submit">搜索</button>
+      </form>
+      <div class="sortbar" id="post-sortbar">
+        <button class="seg active" data-sort="latest">最新发布</button>
+        <button class="seg" data-sort="oldest">最早发布</button>
+        <button class="seg" data-sort="likes">最多点赞</button>
+      </div>
+      <div id="posts-list"></div>
+      <div class="pager" id="share-pager"></div>
+    </div>
+  </section>
+
+  <!-- 抢课 -->
+  <section class="view" id="view-course" hidden>
+    <div class="container">
+      <form class="searchbar" id="course-search-form">
+        <input id="kw-name" placeholder="课程名">
+        <input id="kw-teacher" placeholder="老师">
+        <button class="btn btn-ghost" type="submit">搜索</button>
+        <label class="chk"><input type="checkbox" id="course-only-mine"> 只看我抢的</label>
+      </form>
+      <div id="courses-list"></div>
+      <div class="pager" id="course-pager"></div>
+    </div>
+  </section>
+
+  <!-- 成绩查询（未完成占位） -->
+  <section class="view" id="view-grade" hidden>
+    <div class="container">
+      <div class="coming-soon">
+        <div class="seal-sm">成</div>
+        <h2>成绩查询</h2>
+        <p>该功能尚未完成，敬请期待。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 教师评价（未完成占位） -->
+  <section class="view" id="view-feedback" hidden>
+    <div class="container">
+      <div class="coming-soon">
+        <div class="seal-sm">评</div>
+        <h2>教师评价</h2>
+        <p>该功能尚未完成，敬请期待。</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ============ 帖子详情弹窗 ============ -->
+<div class="modal-mask" id="detail-mask" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <span>帖子详情</span>
+      <button class="btn btn-ghost" id="detail-close">✕</button>
+    </div>
+    <div id="detail-body"></div>
+    <div class="comment-box">
+      <input id="comment-content" placeholder="写评论…">
+      <button class="btn btn-primary" id="btn-comment">评论</button>
+    </div>
+    <div id="comments-list"></div>
+  </div>
+</div>
+
+<!-- 个人详情弹窗 -->
+<div class="modal-mask" id="profile-mask" hidden>
+  <div class="modal modal-sm">
+    <div class="modal-head"><span>个人详情</span><button class="btn btn-ghost" id="profile-close">✕</button></div>
+    <div id="profile-body"></div>
+  </div>
+</div>
+
+<div id="toast-holder"></div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>

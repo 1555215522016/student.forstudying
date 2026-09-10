@@ -14,8 +14,8 @@ public interface PostService {
     /** 发布帖子，返回帖子 ID */
     Long create(Long userId, PostCreateRequest request);
 
-    /** 列表（分页），返回摘要（不含 mediaUrls） */
-    PageResult<PostVO> list(int page, int size);
+    /** 列表（分页），返回摘要（不含 mediaUrls）。sort: latest=最新(默认) / oldest=最早 / likes=点赞最多 */
+    PageResult<PostVO> list(int page, int size, String sort);
 
     /** 详情，返回全部字段（含 mediaUrls + 点赞状态） */
     PostVO detail(Long postId, Long currentUserId);

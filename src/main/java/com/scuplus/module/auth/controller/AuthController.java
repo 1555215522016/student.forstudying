@@ -60,6 +60,7 @@ public class AuthController {
         resp.setStudentId(loginUser.getStudentId());
         resp.setNickname(loginUser.getNickname());
         resp.setAvatarUrl(loginUser.getAvatarUrl());
+        resp.setRole(loginUser.getRole());
         return resp;
     }
 }

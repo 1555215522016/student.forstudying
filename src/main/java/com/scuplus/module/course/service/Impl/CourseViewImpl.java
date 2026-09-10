@@ -47,6 +47,7 @@ public class CourseViewImpl implements CourseView {
 
     private static final String PREFIX_COURSE_STUDENTS = "course_students";
     private static final String CACHE_KEY = "active-courses";
+    private static final String KEY_MODE = "seckill:mode";
 
     /** 降级计数：累计说明系统真的在抖，方便告警（demo 只打日志） */
     private final AtomicInteger degradeCount = new AtomicInteger();
@@ -131,9 +132,15 @@ public class CourseViewImpl implements CourseView {
         return PageResult.of(items, total);
     }
 
-    /** 返回 true=拿到动态数据；false=Redis+DB 都失败，已降级（selectedCount=-1） */
+    /** 返回 true=拿到动态数据；false=都没拿到，已降级（selectedCount=-1）。
+     *  动态数据源按模式分清楚：
+     *   - redis 档（Redis 是裁判）→ 读 Redis，Redis 挂了退回 DB
+     *   - mysql 档（MySQL 是权威）→ 直接读 MySQL，不再看 Redis，避免“已选/已选人数”滞后 5 分钟 */
     private boolean loadDynamic(List<Course> pageCourses, Long userid,
                                 Map<Long, Long> counts, Map<Long, Boolean> flags) {
+        if (CourseSeckillImpl.MODE_MYSQL.equals(redisTemplate.opsForValue().get(KEY_MODE))) {
+            return loadDynamicFromDb(pageCourses, userid, counts, flags);
+        }
         try {
             List<String> keys = pageCourses.stream()
                     .map(c -> PREFIX_COURSE_STUDENTS + ":{" + c.getId() + "}")
@@ -146,29 +153,35 @@ public class CourseViewImpl implements CourseView {
             return true;
         } catch (Exception redisEx) {
             log.warn("列表动态数据 Redis 读取失败，改用 DB 兜底：{}", redisEx.getMessage());
-            try {
-                List<Long> ids = pageCourses.stream().map(Course::getId).toList();
-                // 已选人数：一次 GROUP BY 查出本页全部课程
-                List<CourseSelection> rows = selectionMapper.selectList(Wrappers.<CourseSelection>lambdaQuery()
-                        .in(CourseSelection::getCourseId, ids)
-                        .eq(CourseSelection::getStatus, 1));
-                for (CourseSelection r : rows) {
-                    counts.merge(r.getCourseId(), 1L, Long::sum);
-                }
-                // 是否已选：该用户在页面课程里的已选行
-                List<CourseSelection> mine = selectionMapper.selectList(Wrappers.<CourseSelection>lambdaQuery()
-                        .eq(CourseSelection::getUserId, userid)
-                        .in(CourseSelection::getCourseId, ids)
-                        .eq(CourseSelection::getStatus, 1));
-                for (CourseSelection r : mine) {
-                    flags.put(r.getCourseId(), true);
-                }
-                return true;
-            } catch (Exception dbEx) {
-                log.error("列表动态数据 DB 兜底也失败，降级 selectedCount=-1：", dbEx);
-                log.warn("列表降级计数：{}", degradeCount.incrementAndGet());
-                return false;
+            return loadDynamicFromDb(pageCourses, userid, counts, flags);
+        }
+    }
+
+    /** 以 MySQL 为权威读 已选人数 + 本人是否已选（mysql 档主用，redis 档兜底用） */
+    private boolean loadDynamicFromDb(List<Course> pageCourses, Long userid,
+                                      Map<Long, Long> counts, Map<Long, Boolean> flags) {
+        try {
+            List<Long> ids = pageCourses.stream().map(Course::getId).toList();
+            // 已选人数：一次 GROUP BY 查出本页全部课程
+            List<CourseSelection> rows = selectionMapper.selectList(Wrappers.<CourseSelection>lambdaQuery()
+                    .in(CourseSelection::getCourseId, ids)
+                    .eq(CourseSelection::getStatus, 1));
+            for (CourseSelection r : rows) {
+                counts.merge(r.getCourseId(), 1L, Long::sum);
             }
+            // 是否已选：该用户在页面课程里的已选行
+            List<CourseSelection> mine = selectionMapper.selectList(Wrappers.<CourseSelection>lambdaQuery()
+                    .eq(CourseSelection::getUserId, userid)
+                    .in(CourseSelection::getCourseId, ids)
+                    .eq(CourseSelection::getStatus, 1));
+            for (CourseSelection r : mine) {
+                flags.put(r.getCourseId(), true);
+            }
+            return true;
+        } catch (Exception dbEx) {
+            log.error("列表动态数据 DB 读取失败，降级 selectedCount=-1：", dbEx);
+            log.warn("列表降级计数：{}", degradeCount.incrementAndGet());
+            return false;
         }
     }
 }

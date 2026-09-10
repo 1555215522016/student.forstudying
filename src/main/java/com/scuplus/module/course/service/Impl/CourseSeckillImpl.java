@@ -138,10 +138,11 @@ public class CourseSeckillImpl implements CourseSeckill {
                     c.getClassTime() != null ? c.getClassTime() : NO_SLOT);
             ensureCourseStudents(c.getId());
         }
-        // 模式默认 Redis 主；已存在（清库前的旧事件）则不覆盖
-        redisTemplate.opsForValue().setIfAbsent(KEY_MODE, MODE_REDIS);
-        redisTemplate.opsForValue().setIfAbsent(KEY_MODE_SINCE, String.valueOf(System.currentTimeMillis()));
-        log.info("抢课缓存初始化完成：{} 门课程已灌入 Redis，当前模式 {}", courses.size(), currentMode());
+        // 每次应用启动都把抢课"事件"复位：回到 redis 主档、10 分钟计时归零（演示/测试需要重新开始计时）
+        // 注意：只有 mode/since 用 set()；上方 stock/cap/slot 仍是 setIfAbsent —— 库存绝不在重启时重置，否则"重启即复活名额"会超卖
+        redisTemplate.opsForValue().set(KEY_MODE, MODE_REDIS);
+        redisTemplate.opsForValue().set(KEY_MODE_SINCE, String.valueOf(System.currentTimeMillis()));
+        log.info("抢课缓存初始化完成：{} 门课程已灌入 Redis，当前模式 {}（已复位，10 分钟计时重新开始）", courses.size(), currentMode());
     }
 
     /** course_students 集合缺失时创建空集合：Lua 第一行 EXISTS(KEYS[4]) 依赖它存在，
@@ -246,13 +247,15 @@ public class CourseSeckillImpl implements CourseSeckill {
                 if (course == null) {
                     throw new BusinessException(ErrorCode.BAD_REQUEST, "课程不存在");
                 }
-                // ① 先看自己是否已选：已选＝幂等成功，不占新名额。
+                // ① 先看自己是否已选。
                 //    必须放在容量/冲突判断之前——否则冲突查询会把自己刚选的这堂课也数进去，误报"时间冲突"
+                //    【旧】已选＝幂等返回成功 → 前端反复点都显示"成功"；改为：已选直接报"已选过"，不误导
+                //    if (existing != null && existing.getStatus() == 1) { return 1; }
                 CourseSelection existing = selectionMapper.selectOne(Wrappers.<CourseSelection>lambdaQuery()
                         .eq(CourseSelection::getUserId, userId)
                         .eq(CourseSelection::getCourseId, courseId));
                 if (existing != null && existing.getStatus() == 1) {
-                    return 1;
+                    throw new BusinessException(ErrorCode.CONFLICT, "已选过该课程，请勿重复选课");
                 }
                 // ② 判量：已选人数 < 容量（行锁保证并发的两次不会都通过）
                 Long selected = selectionMapper.selectCount(Wrappers.<CourseSelection>lambdaQuery()
@@ -282,9 +285,9 @@ public class CourseSeckillImpl implements CourseSeckill {
         } catch (CourseFullException e) {
             throw new BusinessException(ErrorCode.CONFLICT, "抢课失败，课程已满");
         } catch (DuplicateKeyException e) {
-            // 并发下撞唯一键：另一个请求已插好，用户确持名额
-            log.warn("PHASE3 并发重选唯一键兜底，按成功处理：userId={}, courseId={}", userId, courseId);
-            return successVo();
+            // 并发下撞唯一键：另一个请求已插好，说明用户已持名额 → 按"已选过"报错，不再幂等放行
+            log.warn("PHASE3 并发重选唯一键兜底，按已选处理：userId={}, courseId={}", userId, courseId);
+            throw new BusinessException(ErrorCode.CONFLICT, "已选过该课程，请勿重复选课");
         } catch (Exception e) {
             if (isAmbiguous(e)) {
                 // 超时/断连：结果未知。MySQL 是权威，把它交给查询/对账去收敛，绝不在客户端翻案

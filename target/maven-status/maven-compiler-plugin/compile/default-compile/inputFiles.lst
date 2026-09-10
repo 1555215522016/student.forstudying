@@ -83,8 +83,13 @@ D:\scuplus-java\src\main\java\com\scuplus\module\share\service\impl\PostServiceI
 D:\scuplus-java\src\main\java\com\scuplus\module\share\service\LikeService.java
 D:\scuplus-java\src\main\java\com\scuplus\module\share\service\PostSearchService.java
 D:\scuplus-java\src\main\java\com\scuplus\module\share\service\PostService.java
+D:\scuplus-java\src\main\java\com\scuplus\module\user\controller\UserController.java
+D:\scuplus-java\src\main\java\com\scuplus\module\user\dto\ProfileUpdateRequest.java
+D:\scuplus-java\src\main\java\com\scuplus\module\user\dto\UserProfileVO.java
 D:\scuplus-java\src\main\java\com\scuplus\module\user\entity\User.java
 D:\scuplus-java\src\main\java\com\scuplus\module\user\entity\UserCredential.java
 D:\scuplus-java\src\main\java\com\scuplus\module\user\mapper\UserCredentialMapper.java
 D:\scuplus-java\src\main\java\com\scuplus\module\user\mapper\UserMapper.java
+D:\scuplus-java\src\main\java\com\scuplus\module\user\service\impl\UserProfileServiceImpl.java
+D:\scuplus-java\src\main\java\com\scuplus\module\user\service\UserProfileService.java
 D:\scuplus-java\src\main\java\com\scuplus\ScuplusApplication.java

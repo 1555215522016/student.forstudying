@@ -20,4 +20,7 @@ public class LoginResponse {
 
     /** 头像 */
     private String avatarUrl;
+
+    /** 角色：0普通 1管理员（前端显示徽章用） */
+    private Integer role;
 }

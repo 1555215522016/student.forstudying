@@ -44,12 +44,13 @@ public class PostController {
         return Result.success(postService.create(userId, request));
     }
 
-    /** 列表：公开访问，分页 */
+    /** 列表：公开访问，分页，可按 最新(latest 默认)/最早(oldest)/点赞最多(likes) 排序 */
     @GetMapping
     public Result<PageResult<PostVO>> list(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        return Result.success(postService.list(page, size));
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "latest") String sort) {
+        return Result.success(postService.list(page, size, sort));
     }
 
     /** 搜索：IK 分词匹配帖子正文，公开访问，分页 */

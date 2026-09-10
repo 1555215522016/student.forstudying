@@ -2,11 +2,13 @@ com\scuplus\module\course\config\CourseAsyncConfig.class
 com\scuplus\common\config\CaffineConfig.class
 com\scuplus\module\course\service\Impl\CourseSeckillImpl.class
 com\scuplus\module\course\dto\CourseChooseVO.class
+com\scuplus\module\user\controller\UserController.class
 com\scuplus\module\course\dto\CourseVO.class
 com\scuplus\module\notify\sse\SseEmitterRegistry.class
 com\scuplus\module\user\mapper\UserCredentialMapper.class
 com\scuplus\infrastructure\job\CourseReconcileJob.class
 com\scuplus\module\course\mapper\CourseMapper.class
+com\scuplus\module\user\service\impl\UserProfileServiceImpl.class
 com\scuplus\module\oss\dto\MultipartInitDTO.class
 com\scuplus\module\course\dto\CourseDeleteVO.class
 com\scuplus\module\notify\dto\AnnouncementCreateRequest.class
@@ -48,6 +50,7 @@ com\scuplus\module\share\controller\LikeController.class
 com\scuplus\module\notify\entity\Announcement.class
 com\scuplus\module\course\dto\CourseChooseRequest.class
 com\scuplus\module\share\service\impl\LikeServiceImpl.class
+com\scuplus\module\user\dto\ProfileUpdateRequest.class
 com\scuplus\common\config\S3Config.class
 com\scuplus\module\share\service\impl\PostServiceImpl.class
 com\scuplus\common\config\MybatisPlusConfig.class
@@ -57,6 +60,7 @@ com\scuplus\module\course\entiy\Course.class
 com\scuplus\module\notify\entity\Notification.class
 com\scuplus\module\oss\dto\AbortRequest.class
 com\scuplus\ScuplusApplication.class
+com\scuplus\module\user\service\UserProfileService.class
 com\scuplus\module\oss\dto\PresignPartsDTO.class
 com\scuplus\module\course\mapper\CourseSelectionMapper.class
 com\scuplus\common\security\LoginUser.class
@@ -86,5 +90,6 @@ com\scuplus\module\notify\service\impl\NotificationServiceImpl.class
 com\scuplus\common\result\Result.class
 com\scuplus\module\oss\dto\PresignPartsRequest.class
 com\scuplus\module\oss\service\OssService.class
+com\scuplus\module\user\dto\UserProfileVO.class
 com\scuplus\common\exception\BusinessException.class
 com\scuplus\module\course\service\CourseSeckill.class
